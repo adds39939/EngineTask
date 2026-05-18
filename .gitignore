@@ -1,0 +1,45 @@
+## User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## IDE folders
+.vs/
+.vscode/
+.idea/
+*.swp
+
+## Build outputs
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+[Ll]og/
+[Ll]ogs/
+[Bb]uild/
+[Aa]rtifacts/
+publish/
+
+## Test results / coverage
+[Tt]est[Rr]esults/
+[Cc]overage/
+*.coverage
+*.coveragexml
+
+## NuGet
+*.nupkg
+*.snupkg
+.nuget/
+
+## ReSharper / Rider
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+## Verify — keep *.verified.*, drop transient *.received.*
+*.received.*
+
+## OS
+.DS_Store
+Thumbs.db
