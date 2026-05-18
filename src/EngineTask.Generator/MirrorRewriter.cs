@@ -22,11 +22,17 @@ internal sealed class MirrorRewriter : CSharpSyntaxRewriter
     {
         var rewriter = new MirrorRewriter(semanticModel, flavour);
         var rewritten = (MethodDeclarationSyntax?)rewriter.Visit(decl);
-        return rewritten?.WithoutLeadingTrivia().ToFullString() ?? string.Empty;
+        return rewritten?.NormalizeWhitespace(indentation: "    ", eol: "\n").ToFullString()
+            ?? string.Empty;
     }
 
     public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node)
     {
+        // `var` is a contextual keyword; the semantic model resolves it to the
+        // inferred type, but we must not rewrite it — the rewritten initializer
+        // will already carry the correct target type, and `var` will infer it.
+        if (node.IsVar) return base.VisitIdentifierName(node);
+
         if (TryMapType(node, out var mappedText))
             return SyntaxFactory.ParseTypeName(mappedText).WithTriviaFrom(node);
         return base.VisitIdentifierName(node);

@@ -14,6 +14,38 @@ internal static class TestHelper
 
     public static Task RunAsync(string source)
     {
+        var driver = RunGenerator(source);
+        return Verifier.Verify(driver).UseDirectory("Snapshots");
+    }
+
+    public static Task VerifyMirrorAsync(string source)
+    {
+        var driver = RunGenerator(source);
+        var result = driver.GetRunResult();
+        var mirrorTree = result.GeneratedTrees.FirstOrDefault(t =>
+            t.FilePath.EndsWith(".GDTask.g.cs", StringComparison.Ordinal)
+            && !t.FilePath.Contains(".Attributes."));
+
+        var content = mirrorTree?.ToString() ?? "<no mirror emitted>";
+        return Verifier.Verify(content, "cs").UseDirectory("Snapshots");
+    }
+
+    public static Task VerifyEntryAsync(string memberSource) =>
+        VerifyMirrorAsync($$"""
+            using System.Threading.Tasks;
+            using EngineTask;
+
+            namespace Sample;
+
+            [GenerateMirror(TaskFlavour.GDTask)]
+            public partial class C
+            {
+                {{memberSource}}
+            }
+            """);
+
+    private static GeneratorDriver RunGenerator(string source)
+    {
         var syntaxTree = CSharpSyntaxTree.ParseText(source);
         var compilation = CSharpCompilation.Create(
             assemblyName: "Sample",
@@ -23,9 +55,7 @@ internal static class TestHelper
 
         var generator = new EngineTaskGenerator();
         GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);
-        driver = driver.RunGenerators(compilation);
-
-        return Verifier.Verify(driver).UseDirectory("Snapshots");
+        return driver.RunGenerators(compilation);
     }
 
     private static MetadataReference[] LoadReferences()
