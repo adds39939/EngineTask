@@ -6,7 +6,7 @@ namespace Sample.GDTask
 {
     public partial class Calculator
     {
-        public global::GodotTask.GDTask DoNothingAsync() => throw new global::System.NotImplementedException();
-        public global::GodotTask.GDTask<int> AddAsync(int a, int b) => throw new global::System.NotImplementedException();
+        public global::GodotTask.GDTask DoNothingAsync() => global::GodotTask.GDTask.CompletedTask;
+        public global::GodotTask.GDTask<int> AddAsync(int a, int b) => global::GodotTask.GDTask.FromResult(a + b);
     }
 }

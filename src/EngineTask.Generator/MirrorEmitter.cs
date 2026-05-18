@@ -16,7 +16,7 @@ internal static class MirrorEmitter
         sb.AppendLine("    {");
         foreach (var method in target.Methods)
         {
-            sb.Append("        ").AppendLine(method.Source);
+            sb.Append("        ").AppendLine(method.Source.TrimEnd());
         }
         sb.AppendLine("    }");
         sb.AppendLine("}");

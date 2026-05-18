@@ -1,5 +1,6 @@
 using System.Linq;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace EngineTask.Generator;
 
@@ -7,52 +8,41 @@ internal readonly record struct MirrorMethod(string Source)
 {
     public static MirrorMethod? TryCreate(
         IMethodSymbol method,
+        SemanticModel semanticModel,
+        MirrorFlavour flavour,
         INamedTypeSymbol? taskType,
-        INamedTypeSymbol? taskOfTType)
+        INamedTypeSymbol? taskOfTType,
+        INamedTypeSymbol? valueTaskType,
+        INamedTypeSymbol? valueTaskOfTType)
     {
-        var returnType = MapReturnType(method.ReturnType, taskType, taskOfTType);
-        if (returnType is null) return null;
+        if (!IsEligibleReturn(method.ReturnType, taskType, taskOfTType, valueTaskType, valueTaskOfTType))
+            return null;
 
-        var parameters = string.Join(
-            ", ",
-            method.Parameters.Select(static p =>
-                $"{p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)} {p.Name}"));
+        var declRef = method.DeclaringSyntaxReferences.FirstOrDefault();
+        if (declRef is null) return null;
+        if (declRef.GetSyntax() is not MethodDeclarationSyntax decl) return null;
 
-        var accessibility = method.DeclaredAccessibility switch
-        {
-            Accessibility.Public => "public",
-            Accessibility.Internal => "internal",
-            Accessibility.Protected => "protected",
-            Accessibility.ProtectedOrInternal => "protected internal",
-            Accessibility.ProtectedAndInternal => "private protected",
-            _ => "private",
-        };
+        var tree = decl.SyntaxTree;
+        var model = ReferenceEquals(tree, semanticModel.SyntaxTree)
+            ? semanticModel
+            : semanticModel.Compilation.GetSemanticModel(tree);
 
-        var staticMod = method.IsStatic ? " static" : string.Empty;
-        var src =
-            $"{accessibility}{staticMod} {returnType} {method.Name}({parameters}) => throw new global::System.NotImplementedException();";
-        return new MirrorMethod(src);
+        var source = MirrorRewriter.RewriteMethod(decl, model, flavour);
+        return new MirrorMethod(source);
     }
 
-    private static string? MapReturnType(
+    private static bool IsEligibleReturn(
         ITypeSymbol returnType,
         INamedTypeSymbol? taskType,
-        INamedTypeSymbol? taskOfTType)
+        INamedTypeSymbol? taskOfTType,
+        INamedTypeSymbol? valueTaskType,
+        INamedTypeSymbol? valueTaskOfTType)
     {
-        if (returnType is not INamedTypeSymbol named) return null;
-
-        if (taskType is not null && SymbolEqualityComparer.Default.Equals(named, taskType))
-            return "global::GodotTask.GDTask";
-
-        if (taskOfTType is not null
-            && named.IsGenericType
-            && SymbolEqualityComparer.Default.Equals(named.OriginalDefinition, taskOfTType))
-        {
-            var t = named.TypeArguments[0]
-                .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-            return $"global::GodotTask.GDTask<{t}>";
-        }
-
-        return null;
+        if (returnType is not INamedTypeSymbol named) return false;
+        var def = named.OriginalDefinition;
+        return (taskType is not null && SymbolEqualityComparer.Default.Equals(def, taskType))
+            || (taskOfTType is not null && SymbolEqualityComparer.Default.Equals(def, taskOfTType))
+            || (valueTaskType is not null && SymbolEqualityComparer.Default.Equals(def, valueTaskType))
+            || (valueTaskOfTType is not null && SymbolEqualityComparer.Default.Equals(def, valueTaskOfTType));
     }
 }

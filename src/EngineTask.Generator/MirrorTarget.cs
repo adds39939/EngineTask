@@ -20,8 +20,12 @@ internal readonly record struct MirrorTarget(
     {
         var classSymbol = (INamedTypeSymbol)ctx.TargetSymbol;
         var compilation = ctx.SemanticModel.Compilation;
-        var taskType = compilation.GetTypeByMetadataName("System.Threading.Tasks.Task");
-        var taskOfTType = compilation.GetTypeByMetadataName("System.Threading.Tasks.Task`1");
+        var flavour = MirrorFlavour.GDTask;
+
+        var taskType         = compilation.GetTypeByMetadataName("System.Threading.Tasks.Task");
+        var taskOfTType      = compilation.GetTypeByMetadataName("System.Threading.Tasks.Task`1");
+        var valueTaskType    = compilation.GetTypeByMetadataName("System.Threading.Tasks.ValueTask");
+        var valueTaskOfTType = compilation.GetTypeByMetadataName("System.Threading.Tasks.ValueTask`1");
 
         var methods = new List<MirrorMethod>();
         foreach (var member in classSymbol.GetMembers())
@@ -29,7 +33,14 @@ internal readonly record struct MirrorTarget(
             if (member is not IMethodSymbol method) continue;
             if (method.MethodKind != MethodKind.Ordinary) continue;
 
-            var mirrored = MirrorMethod.TryCreate(method, taskType, taskOfTType);
+            var mirrored = MirrorMethod.TryCreate(
+                method,
+                ctx.SemanticModel,
+                flavour,
+                taskType,
+                taskOfTType,
+                valueTaskType,
+                valueTaskOfTType);
             if (mirrored.HasValue) methods.Add(mirrored.Value);
         }
 
