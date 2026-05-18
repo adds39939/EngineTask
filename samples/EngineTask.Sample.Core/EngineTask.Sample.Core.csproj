@@ -7,12 +7,21 @@
     <IsPackable>false</IsPackable>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)Generated</CompilerGeneratedFilesOutputPath>
+    <!-- GDTask transitively pulls Godot.SourceGenerators, which expects this
+         property to be set by Godot.NET.Sdk. We point it at the project dir
+         so the generator runs over our (zero) GodotObject scripts and exits. -->
+    <GodotProjectDir>$(MSBuildProjectDirectory)</GodotProjectDir>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="GDTask" Version="3.0.0" />
     <ProjectReference Include="..\..\src\EngineTask.Generator\EngineTask.Generator.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <CompilerVisibleProperty Include="GodotProjectDir" />
   </ItemGroup>
 
 </Project>
