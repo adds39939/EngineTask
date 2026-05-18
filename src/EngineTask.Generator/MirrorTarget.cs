@@ -26,12 +26,14 @@ internal readonly record struct MirrorTarget(
         var taskOfTType      = compilation.GetTypeByMetadataName("System.Threading.Tasks.Task`1");
         var valueTaskType    = compilation.GetTypeByMetadataName("System.Threading.Tasks.ValueTask");
         var valueTaskOfTType = compilation.GetTypeByMetadataName("System.Threading.Tasks.ValueTask`1");
+        var mirrorIgnoreType = compilation.GetTypeByMetadataName("EngineTask.MirrorIgnoreAttribute");
 
         var methods = new List<MirrorMethod>();
         foreach (var member in classSymbol.GetMembers())
         {
             if (member is not IMethodSymbol method) continue;
             if (method.MethodKind != MethodKind.Ordinary) continue;
+            if (HasMirrorIgnore(method, mirrorIgnoreType)) continue;
 
             var mirrored = MirrorMethod.TryCreate(
                 method,
@@ -49,5 +51,16 @@ internal readonly record struct MirrorTarget(
             : classSymbol.ContainingNamespace.ToDisplayString();
 
         return new MirrorTarget(ns, classSymbol.Name, new EquatableArray<MirrorMethod>(methods.ToArray()));
+    }
+
+    private static bool HasMirrorIgnore(IMethodSymbol method, INamedTypeSymbol? mirrorIgnoreType)
+    {
+        if (mirrorIgnoreType is null) return false;
+        foreach (var attr in method.GetAttributes())
+        {
+            if (SymbolEqualityComparer.Default.Equals(attr.AttributeClass, mirrorIgnoreType))
+                return true;
+        }
+        return false;
     }
 }
