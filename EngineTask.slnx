@@ -4,6 +4,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/EngineTask.Generator.Tests/EngineTask.Generator.Tests.csproj" />
+    <Project Path="tests/EngineTask.GDTask.Tests/EngineTask.GDTask.Tests.csproj" />
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/EngineTask.Sample.Core/EngineTask.Sample.Core.csproj" />
