@@ -18,6 +18,19 @@ public sealed class EngineTaskGenerator : IIncrementalGenerator
                 transform: static (ctx, _) => MirrorTarget.FromContext(ctx));
 
         context.RegisterSourceOutput(targets, static (spc, target) =>
-            spc.AddSource(target.HintName, MirrorEmitter.Emit(target)));
+        {
+            foreach (var d in target.Diagnostics)
+            {
+                if (!Diagnostics.ById.TryGetValue(d.DescriptorId, out var descriptor)) continue;
+                var args = new object?[d.Arguments.Length];
+                for (var i = 0; i < args.Length; i++) args[i] = d.Arguments[i];
+                spc.ReportDiagnostic(Diagnostic.Create(
+                    descriptor,
+                    d.Location?.ToLocation() ?? Location.None,
+                    args));
+            }
+
+            spc.AddSource(target.HintName, MirrorEmitter.Emit(target));
+        });
     }
 }

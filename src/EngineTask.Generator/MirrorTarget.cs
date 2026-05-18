@@ -1,12 +1,16 @@
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace EngineTask.Generator;
 
 internal readonly record struct MirrorTarget(
     string SourceNamespace,
     string ClassName,
-    EquatableArray<MirrorMethod> Methods)
+    EquatableArray<MirrorMethod> Methods,
+    EquatableArray<DiagnosticInfo> Diagnostics)
 {
     public string MirrorNamespace =>
         string.IsNullOrEmpty(SourceNamespace) ? "GDTask" : $"{SourceNamespace}.GDTask";
@@ -19,6 +23,7 @@ internal readonly record struct MirrorTarget(
     public static MirrorTarget FromContext(GeneratorAttributeSyntaxContext ctx)
     {
         var classSymbol = (INamedTypeSymbol)ctx.TargetSymbol;
+        var classSyntax = (ClassDeclarationSyntax)ctx.TargetNode;
         var compilation = ctx.SemanticModel.Compilation;
         var flavour = MirrorFlavour.GDTask;
 
@@ -29,11 +34,32 @@ internal readonly record struct MirrorTarget(
         var mirrorIgnoreType = compilation.GetTypeByMetadataName("EngineTask.MirrorIgnoreAttribute");
 
         var methods = new List<MirrorMethod>();
+        var diagnostics = new List<DiagnosticInfo>();
+
+        // ENGTASK002: source class should be partial
+        if (!classSyntax.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword)))
+        {
+            diagnostics.Add(DiagnosticInfo.Create(
+                Generator.Diagnostics.NonPartialClass.Id,
+                classSyntax.Identifier.GetLocation(),
+                classSymbol.Name));
+        }
+
         foreach (var member in classSymbol.GetMembers())
         {
             if (member is not IMethodSymbol method) continue;
             if (method.MethodKind != MethodKind.Ordinary) continue;
             if (HasMirrorIgnore(method, mirrorIgnoreType)) continue;
+
+            // ENGTASK003: async void
+            if (method.IsAsync && method.ReturnsVoid)
+            {
+                diagnostics.Add(DiagnosticInfo.Create(
+                    Generator.Diagnostics.AsyncVoidMethod.Id,
+                    GetMethodIdentifierLocation(method),
+                    method.Name));
+                continue;
+            }
 
             var mirrored = MirrorMethod.TryCreate(
                 method,
@@ -50,7 +76,11 @@ internal readonly record struct MirrorTarget(
             ? string.Empty
             : classSymbol.ContainingNamespace.ToDisplayString();
 
-        return new MirrorTarget(ns, classSymbol.Name, new EquatableArray<MirrorMethod>(methods.ToArray()));
+        return new MirrorTarget(
+            ns,
+            classSymbol.Name,
+            new EquatableArray<MirrorMethod>(methods.ToArray()),
+            new EquatableArray<DiagnosticInfo>(diagnostics.ToArray()));
     }
 
     private static bool HasMirrorIgnore(IMethodSymbol method, INamedTypeSymbol? mirrorIgnoreType)
@@ -62,5 +92,13 @@ internal readonly record struct MirrorTarget(
                 return true;
         }
         return false;
+    }
+
+    private static Location? GetMethodIdentifierLocation(IMethodSymbol method)
+    {
+        var declRef = method.DeclaringSyntaxReferences.FirstOrDefault();
+        if (declRef?.GetSyntax() is MethodDeclarationSyntax mds)
+            return mds.Identifier.GetLocation();
+        return method.Locations.FirstOrDefault();
     }
 }

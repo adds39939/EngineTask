@@ -44,6 +44,35 @@ internal static class TestHelper
             }
             """);
 
+    public static Task VerifyWithDiagnosticsAsync(string source)
+    {
+        var driver = RunGenerator(source);
+        var result = driver.GetRunResult();
+
+        var sb = new System.Text.StringBuilder();
+
+        var mirror = result.GeneratedTrees.FirstOrDefault(t =>
+            t.FilePath.EndsWith(".GDTask.g.cs", StringComparison.Ordinal)
+            && !t.FilePath.Contains(".Attributes."));
+        if (mirror is not null)
+        {
+            sb.Append(mirror.ToString());
+        }
+
+        if (result.Diagnostics.Length > 0)
+        {
+            sb.Append('\n');
+            sb.Append("// === Diagnostics ===\n");
+            foreach (var d in result.Diagnostics.OrderBy(d => d.Id).ThenBy(d => d.GetMessage()))
+            {
+                sb.Append("// ").Append(d.Severity).Append(": ").Append(d.Id).Append(": ")
+                  .Append(d.GetMessage()).Append('\n');
+            }
+        }
+
+        return Verifier.Verify(sb.ToString(), "cs").UseDirectory("Snapshots");
+    }
+
     private static GeneratorDriver RunGenerator(string source)
     {
         var syntaxTree = CSharpSyntaxTree.ParseText(source);
