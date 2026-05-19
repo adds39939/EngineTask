@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -13,7 +14,8 @@ internal readonly record struct MirrorMethod(string Source)
         INamedTypeSymbol? taskType,
         INamedTypeSymbol? taskOfTType,
         INamedTypeSymbol? valueTaskType,
-        INamedTypeSymbol? valueTaskOfTType)
+        INamedTypeSymbol? valueTaskOfTType,
+        List<DiagnosticInfo> diagnostics)
     {
         if (!IsEligibleReturn(method.ReturnType, taskType, taskOfTType, valueTaskType, valueTaskOfTType))
             return null;
@@ -27,8 +29,22 @@ internal readonly record struct MirrorMethod(string Source)
             ? semanticModel
             : semanticModel.Compilation.GetSemanticModel(tree);
 
-        var source = MirrorRewriter.RewriteMethod(decl, model, flavour);
-        return new MirrorMethod(source);
+        var result = MirrorRewriter.RewriteMethod(decl, model, flavour);
+
+        if (result.Unmapped.Length > 0)
+        {
+            foreach (var api in result.Unmapped)
+            {
+                diagnostics.Add(DiagnosticInfo.Create(
+                    Diagnostics.UnmappedTaskApi.Id,
+                    api.Location?.ToLocation(),
+                    api.Display,
+                    method.Name));
+            }
+            return null;
+        }
+
+        return new MirrorMethod(result.Source);
     }
 
     private static bool IsEligibleReturn(

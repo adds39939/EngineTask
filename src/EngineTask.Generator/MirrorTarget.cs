@@ -69,7 +69,8 @@ internal readonly record struct MirrorTarget(
                 taskType,
                 taskOfTType,
                 valueTaskType,
-                valueTaskOfTType);
+                valueTaskOfTType,
+                diagnostics);
             if (mirrored.HasValue) methods.Add(mirrored.Value);
         }
 

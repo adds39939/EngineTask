@@ -7,6 +7,14 @@ internal static class Diagnostics
 {
     public const string Category = "EngineTask";
 
+    public static readonly DiagnosticDescriptor UnmappedTaskApi = new(
+        id: "ENGTASK001",
+        title: "Unmapped Task-related API",
+        messageFormat: "Method '{1}' uses '{0}', which has no translation for the target flavour; the mirror for this method will be skipped. Suppress with [MirrorIgnore] or extend the translation table.",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
     public static readonly DiagnosticDescriptor NonPartialClass = new(
         id: "ENGTASK002",
         title: "[GenerateMirror] should be applied to a partial class",
@@ -26,6 +34,7 @@ internal static class Diagnostics
     public static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> ById =
         new Dictionary<string, DiagnosticDescriptor>
         {
+            [UnmappedTaskApi.Id] = UnmappedTaskApi,
             [NonPartialClass.Id] = NonPartialClass,
             [AsyncVoidMethod.Id] = AsyncVoidMethod,
         };
