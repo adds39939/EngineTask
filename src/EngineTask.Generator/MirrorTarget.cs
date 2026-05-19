@@ -9,6 +9,7 @@ namespace EngineTask.Generator;
 internal readonly record struct MirrorTarget(
     string SourceNamespace,
     string ClassName,
+    EquatableArray<string> Usings,
     EquatableArray<MirrorMethod> Methods,
     EquatableArray<DiagnosticInfo> Diagnostics)
 {
@@ -79,8 +80,41 @@ internal readonly record struct MirrorTarget(
         return new MirrorTarget(
             ns,
             classSymbol.Name,
+            new EquatableArray<string>(ExtractUsings(classSyntax).ToArray()),
             new EquatableArray<MirrorMethod>(methods.ToArray()),
             new EquatableArray<DiagnosticInfo>(diagnostics.ToArray()));
+    }
+
+    private static List<string> ExtractUsings(ClassDeclarationSyntax classSyntax)
+    {
+        var result = new List<string>();
+        var seen = new HashSet<string>();
+
+        void Add(UsingDirectiveSyntax u)
+        {
+            // The mirror rewrites every Task / Task<T> reference to a fully-
+            // qualified GodotTask name, so this using would just become an
+            // unused-using warning in the consumer's compilation.
+            if (u.Alias is null && u.StaticKeyword == default
+                && u.Name?.ToString() == "System.Threading.Tasks")
+                return;
+
+            var text = u.NormalizeWhitespace().ToFullString().Trim();
+            if (seen.Add(text)) result.Add(text);
+        }
+
+        var unit = classSyntax.SyntaxTree.GetCompilationUnitRoot();
+        foreach (var u in unit.Usings) Add(u);
+
+        SyntaxNode? parent = classSyntax.Parent;
+        while (parent is not null)
+        {
+            if (parent is BaseNamespaceDeclarationSyntax bns)
+                foreach (var u in bns.Usings) Add(u);
+            parent = parent.Parent;
+        }
+
+        return result;
     }
 
     private static bool HasMirrorIgnore(IMethodSymbol method, INamedTypeSymbol? mirrorIgnoreType)
