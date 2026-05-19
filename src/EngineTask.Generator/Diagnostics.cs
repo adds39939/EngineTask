@@ -31,11 +31,20 @@ internal static class Diagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    public static readonly DiagnosticDescriptor MirrorMethodCollision = new(
+        id: "ENGTASK004",
+        title: "Mirror method collision with user-written partial",
+        messageFormat: "A method '{0}' with this arity is already declared in a user-written partial of mirror class '{1}'; the generated mirror will skip this method",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
     public static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> ById =
         new Dictionary<string, DiagnosticDescriptor>
         {
             [UnmappedTaskApi.Id] = UnmappedTaskApi,
             [NonPartialClass.Id] = NonPartialClass,
             [AsyncVoidMethod.Id] = AsyncVoidMethod,
+            [MirrorMethodCollision.Id] = MirrorMethodCollision,
         };
 }

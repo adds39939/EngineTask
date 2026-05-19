@@ -37,6 +37,25 @@ internal readonly record struct MirrorTarget(
         var methods = new List<MirrorMethod>();
         var diagnostics = new List<DiagnosticInfo>();
 
+        // ENGTASK004 prep: enumerate signatures already declared in a
+        // user-written partial of the target mirror class.
+        var sourceNs = classSymbol.ContainingNamespace.IsGlobalNamespace
+            ? string.Empty
+            : classSymbol.ContainingNamespace.ToDisplayString();
+        var mirrorFullName = string.IsNullOrEmpty(sourceNs)
+            ? $"GDTask.{classSymbol.Name}"
+            : $"{sourceNs}.GDTask.{classSymbol.Name}";
+        var existingMirrorType = compilation.GetTypeByMetadataName(mirrorFullName);
+        var existingSignatures = new HashSet<(string Name, int Arity)>();
+        if (existingMirrorType is not null)
+        {
+            foreach (var m in existingMirrorType.GetMembers().OfType<IMethodSymbol>())
+            {
+                if (m.MethodKind != MethodKind.Ordinary) continue;
+                existingSignatures.Add((m.Name, m.Parameters.Length));
+            }
+        }
+
         // ENGTASK002: source class should be partial
         if (!classSyntax.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword)))
         {
@@ -62,6 +81,17 @@ internal readonly record struct MirrorTarget(
                 continue;
             }
 
+            // ENGTASK004: collision with user-written partial of the mirror
+            if (existingSignatures.Contains((method.Name, method.Parameters.Length)))
+            {
+                diagnostics.Add(DiagnosticInfo.Create(
+                    Generator.Diagnostics.MirrorMethodCollision.Id,
+                    GetMethodIdentifierLocation(method),
+                    method.Name,
+                    classSymbol.Name));
+                continue;
+            }
+
             var mirrored = MirrorMethod.TryCreate(
                 method,
                 ctx.SemanticModel,
@@ -74,12 +104,8 @@ internal readonly record struct MirrorTarget(
             if (mirrored.HasValue) methods.Add(mirrored.Value);
         }
 
-        var ns = classSymbol.ContainingNamespace.IsGlobalNamespace
-            ? string.Empty
-            : classSymbol.ContainingNamespace.ToDisplayString();
-
         return new MirrorTarget(
-            ns,
+            sourceNs,
             classSymbol.Name,
             new EquatableArray<string>(ExtractUsings(classSyntax).ToArray()),
             new EquatableArray<MirrorMethod>(methods.ToArray()),
