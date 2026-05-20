@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -15,7 +17,8 @@ public sealed class EngineTaskGenerator : IIncrementalGenerator
             .ForAttributeWithMetadataName(
                 "EngineTask.GenerateMirrorAttribute",
                 predicate: static (node, _) => node is ClassDeclarationSyntax,
-                transform: static (ctx, _) => MirrorTarget.FromContext(ctx));
+                transform: static (ctx, _) => MirrorTarget.AllFromContext(ctx).ToImmutableArray())
+            .SelectMany(static (arr, _) => arr);
 
         context.RegisterSourceOutput(targets, static (spc, target) =>
         {
