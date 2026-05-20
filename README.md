@@ -70,7 +70,9 @@ CLAUDE.md                           agent guidelines
 
 ## Allocation numbers
 
-This is the central claim of the project, expressed in bytes. Numbers from `tests/EngineTask.Benchmarks` running the same `BenchTarget.AddAsync(a, b)` method through three flavour return types, with `a` and `b` set so the sum is outside `AsyncTaskCache.Int32Tasks` (the small-int cache `Task.FromResult` consults).
+This is the central claim of the project, expressed in bytes. Numbers from `tests/EngineTask.Benchmarks`. Inputs are chosen so the result is outside `AsyncTaskCache.Int32Tasks` (the small-int cache `Task.FromResult` and the async builder consult).
+
+### Synchronous path — `Task.FromResult(a + b)`
 
 | Method | Mean | Allocated | Alloc Ratio |
 |---|---:|---:|---:|
@@ -78,14 +80,22 @@ This is the central claim of the project, expressed in bytes. Numbers from `test
 | `GDTask_FromResult` | 3.87 ns | **0 B** | 0.00 |
 | `UniTask_FromResult` | 0.01 ns | **0 B** | 0.00 |
 
-Captured on .NET 8.0.21, Windows 11, x64 AVX-512, BenchmarkDotNet 0.14.0, ShortRun (warmup 3, iterations 3). UniTask runs against the local Cysharp.Threading.Tasks shim (see `tests/EngineTask.UniTask.Shim/`) — UniTask<T> there is shaped identically to the real package on the synchronously-completed path. The wall-time delta is noise; the `Allocated` column is the load-bearing observation: the source path allocates a Task<int> per call, the mirrors allocate nothing.
+### Async-keyword path — `async Task<int> { await Task.CompletedTask; return a + b; }`
 
-The `Allocated == 0` property is also asserted as a regression boundary in `AllocationTests.cs` in each integration test project, so a future change that breaks the no-alloc claim will fail in `dotnet test`, not just in the manual benchmark run.
+| Method | Mean | Allocated | Alloc Ratio |
+|---|---:|---:|---:|
+| `Task_AsyncFromCompletedTask` (baseline) | 8.37 ns | **72 B** | 1.00 |
+| `GDTask_AsyncFromCompletedTask` | 20.40 ns | **0 B** | 0.00 |
+| `UniTask_AsyncFromCompletedTask` | 1.25 ns | **0 B** | 0.00 |
+
+Captured on .NET 8.0.21, Windows 11, x64 AVX-512, BenchmarkDotNet 0.14.0, ShortRun (warmup 3, iterations 3). UniTask runs against the local Cysharp.Threading.Tasks shim (see `tests/EngineTask.UniTask.Shim/`) — the shim's `UniTask<T>`, `AsyncUniTaskMethodBuilder<T>`, and `AsyncUniTaskMethodBuilder` are shaped to match the real package's no-allocation property on synchronously-completing paths. The `Allocated` column is the load-bearing observation: the source path allocates a `Task<int>` per call (and one heap-promoted state machine for the async case), the mirrors allocate nothing.
+
+The `Allocated == 0` property is also asserted as a regression boundary in `AllocationTests.cs` in each integration test project, so a future change that breaks the no-alloc claim fails in `dotnet test`, not just in the manual benchmark run. The async allocation test is Release-only (C# emits async state machines as classes in Debug, defeating the assertion).
 
 To reproduce:
 
 ```
-dotnet run --project tests/EngineTask.Benchmarks -c Release -- --job short --filter "*FromResult*"
+dotnet run --project tests/EngineTask.Benchmarks -c Release -- --job short --filter "*FromResult|*Async*"
 ```
 
 ## Build and test

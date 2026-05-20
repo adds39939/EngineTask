@@ -19,4 +19,19 @@ public class AdderMirrorTests
 
         Assert.Equal(5, result);
     }
+
+    [Fact]
+    public async System.Threading.Tasks.Task AddAsync_Async_ReturnsSum_ViaUniTaskStateMachine()
+    {
+        var adder = new Adder();
+
+        // The mirror's body uses `async UniTask<int>`. The C# compiler
+        // builds the state machine with AsyncUniTaskMethodBuilder<int>
+        // from the shim. For a synchronously-completing path
+        // (`await UniTask.CompletedTask; return a + b;`) the entire
+        // chain stays on the stack — see AllocationTests.
+        var result = await adder.AddAsync_Async(2, 3);
+
+        Assert.Equal(5, result);
+    }
 }

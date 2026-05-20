@@ -8,35 +8,40 @@
 // and tells us to skip it.
 //
 // What we need from this shim is enough surface area for the generated
-// UniTask mirror — `public UniTask<int> AddAsync(...) =>
-// global::Cysharp.Threading.Tasks.UniTask.FromResult(a + b)` — to
-// compile and run end-to-end, AND to faithfully model UniTask's
-// no-allocation property on the synchronous path. UniTask<T> is a
-// readonly struct holding T inline, and FromResult is a static factory
-// returning that struct — no heap allocation occurs anywhere in the
-// chain. This matches the real package's allocation profile on the
-// synchronously-completed path.
+// UniTask mirror to compile and run end-to-end, AND to faithfully
+// model UniTask's no-allocation property on the synchronous async path.
 //
-// The async-state-machine path (an `async UniTask<int>` method) is NOT
-// supported by this shim — there is no AsyncUniTaskMethodBuilder.
-// Adding one would inevitably either (a) wrap an AsyncTaskMethodBuilder
-// internally, which would allocate and mislead the benchmarks, or (b)
-// reimplement UniTask's pooled state-source machinery, which is large
-// and out of Phase 5's scope. The shim therefore covers the Task ↔
-// UniTask static-factory translation correctly, and the async-path
-// claim is exercised through GDTask (which we consume from the real
-// NuGet package) instead.
+// UniTask<T> and UniTask are readonly structs. AsyncUniTaskMethodBuilder
+// is a struct builder — for a synchronously-completing `async UniTask<int>
+// M() => 5;`, the entire builder + state machine + result stays on the
+// stack. The build encodes a deliberate constraint: AwaitOnCompleted and
+// AwaitUnsafeOnCompleted throw NotSupportedException. We are not trying
+// to faithfully model UniTask's asynchronous pooling machinery; we are
+// modelling the zero-alloc synchronous path that the Phase 5 / Phase 7
+// allocation tests assert against.
 
 namespace Cysharp.Threading.Tasks;
 
 using System;
 using System.Runtime.CompilerServices;
 
+[AsyncMethodBuilder(typeof(AsyncUniTaskMethodBuilder))]
 public readonly struct UniTask
 {
+    public Awaiter GetAwaiter() => default;
+
     public static UniTask<T> FromResult<T>(T value) => new(value);
+    public static UniTask CompletedTask => default;
+
+    public readonly struct Awaiter : INotifyCompletion
+    {
+        public bool IsCompleted => true;
+        public void GetResult() { }
+        public void OnCompleted(Action continuation) => continuation();
+    }
 }
 
+[AsyncMethodBuilder(typeof(AsyncUniTaskMethodBuilder<>))]
 public readonly struct UniTask<T>
 {
     private readonly T _value;
@@ -50,5 +55,83 @@ public readonly struct UniTask<T>
         public bool IsCompleted => true;
         public T GetResult() => _value;
         public void OnCompleted(Action continuation) => continuation();
+    }
+}
+
+// Struct method builder for `async UniTask M() { ... }`.
+// Models the synchronous-completion path with zero heap allocation.
+public struct AsyncUniTaskMethodBuilder
+{
+    private Exception? _exception;
+
+    public static AsyncUniTaskMethodBuilder Create() => default;
+
+    public void Start<TStateMachine>(ref TStateMachine stateMachine)
+        where TStateMachine : IAsyncStateMachine
+        => stateMachine.MoveNext();
+
+    public void SetStateMachine(IAsyncStateMachine stateMachine) { }
+    public void SetException(Exception exception) => _exception = exception;
+    public void SetResult() { }
+
+    public void AwaitOnCompleted<TAwaiter, TStateMachine>(ref TAwaiter awaiter, ref TStateMachine stateMachine)
+        where TAwaiter : INotifyCompletion
+        where TStateMachine : IAsyncStateMachine
+        => throw new NotSupportedException(
+            "This UniTask shim supports synchronously-completing async methods only. Use the real Cysharp.Threading.Tasks.UniTask for asynchronous paths.");
+
+    public void AwaitUnsafeOnCompleted<TAwaiter, TStateMachine>(ref TAwaiter awaiter, ref TStateMachine stateMachine)
+        where TAwaiter : ICriticalNotifyCompletion
+        where TStateMachine : IAsyncStateMachine
+        => throw new NotSupportedException(
+            "This UniTask shim supports synchronously-completing async methods only. Use the real Cysharp.Threading.Tasks.UniTask for asynchronous paths.");
+
+    public UniTask Task
+    {
+        get
+        {
+            if (_exception is not null) throw _exception;
+            return default;
+        }
+    }
+}
+
+// Struct method builder for `async UniTask<T> M() { ... return value; }`.
+// Models the synchronous-completion path with zero heap allocation —
+// SetResult stores the T inline; the returned UniTask<T> wraps it.
+public struct AsyncUniTaskMethodBuilder<T>
+{
+    private T _result;
+    private Exception? _exception;
+
+    public static AsyncUniTaskMethodBuilder<T> Create() => default;
+
+    public void Start<TStateMachine>(ref TStateMachine stateMachine)
+        where TStateMachine : IAsyncStateMachine
+        => stateMachine.MoveNext();
+
+    public void SetStateMachine(IAsyncStateMachine stateMachine) { }
+    public void SetException(Exception exception) => _exception = exception;
+    public void SetResult(T result) => _result = result;
+
+    public void AwaitOnCompleted<TAwaiter, TStateMachine>(ref TAwaiter awaiter, ref TStateMachine stateMachine)
+        where TAwaiter : INotifyCompletion
+        where TStateMachine : IAsyncStateMachine
+        => throw new NotSupportedException(
+            "This UniTask shim supports synchronously-completing async methods only. Use the real Cysharp.Threading.Tasks.UniTask for asynchronous paths.");
+
+    public void AwaitUnsafeOnCompleted<TAwaiter, TStateMachine>(ref TAwaiter awaiter, ref TStateMachine stateMachine)
+        where TAwaiter : ICriticalNotifyCompletion
+        where TStateMachine : IAsyncStateMachine
+        => throw new NotSupportedException(
+            "This UniTask shim supports synchronously-completing async methods only. Use the real Cysharp.Threading.Tasks.UniTask for asynchronous paths.");
+
+    public UniTask<T> Task
+    {
+        get
+        {
+            if (_exception is not null) throw _exception;
+            return new UniTask<T>(_result);
+        }
     }
 }
