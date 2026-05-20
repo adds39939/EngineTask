@@ -95,4 +95,4 @@ dotnet test EngineTask.slnx
 
 ## License
 
-TBD.
+[MIT](LICENSE).
