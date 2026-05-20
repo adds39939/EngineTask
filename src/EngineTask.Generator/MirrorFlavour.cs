@@ -4,7 +4,11 @@ using Microsoft.CodeAnalysis;
 
 namespace EngineTask.Generator;
 
-internal sealed class MirrorFlavour
+// Public to allow the test project to render the in-code translation
+// tables as a markdown doc (see TranslationTablesMarkdown.cs in the
+// Generator.Tests project). The generator is distributed as an
+// analyzer assembly — consumers never directly reference this type.
+public sealed class MirrorFlavour
 {
     public string Id { get; }
     public string TargetNamespaceSuffix { get; }

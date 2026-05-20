@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace EngineTask.Generator.Flavours;
 
-internal static class UniTaskFlavour
+public static class UniTaskFlavour
 {
     public const string Id = "UniTask";
 

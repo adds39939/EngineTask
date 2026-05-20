@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace EngineTask.Generator.Flavours;
 
-internal static class GDTaskFlavour
+public static class GDTaskFlavour
 {
     public const string Id = "GDTask";
 
