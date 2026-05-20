@@ -48,6 +48,7 @@ Same source, two state machines, two allocation profiles.
 - [`docs/translation-tables.md`](docs/translation-tables.md) — every type/member mapping for every flavour. Generated from the in-code tables; checked by a unit test so it cannot drift.
 - [`docs/cancellation.md`](docs/cancellation.md) — recommended `CancellationToken` patterns for Godot and Unity consumers.
 - [`docs/extending.md`](docs/extending.md) — how to add a custom flavour via `enginetask.json` (Phase 7), with a Unity `Awaitable` worked example.
+- [`docs/escape-hatches.md`](docs/escape-hatches.md) — engine-specific code patterns (`[MirrorIgnore]` + manual mirror partial; ENGTASK004) and how instance-member accesses pass through.
 
 ## Repository layout
 
