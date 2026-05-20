@@ -7,6 +7,7 @@ namespace EngineTask
     internal enum TaskFlavour
     {
         GDTask,
+        UniTask,
     }
 
     [global::System.AttributeUsage(global::System.AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
