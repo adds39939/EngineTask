@@ -18,31 +18,53 @@ internal static class TestHelper
         return Verifier.Verify(driver).UseDirectory("Snapshots");
     }
 
-    public static Task VerifyMirrorAsync(string source)
+    public static Task VerifyMirrorAsync(string source, string flavourSuffix = "GDTask")
     {
         var driver = RunGenerator(source);
         var result = driver.GetRunResult();
+        var endsWith = "." + flavourSuffix + ".g.cs";
         var mirrorTree = result.GeneratedTrees.FirstOrDefault(t =>
-            t.FilePath.EndsWith(".GDTask.g.cs", StringComparison.Ordinal)
+            t.FilePath.EndsWith(endsWith, StringComparison.Ordinal)
             && !t.FilePath.Contains(".Attributes."));
 
         var content = mirrorTree?.ToString() ?? "<no mirror emitted>";
         return Verifier.Verify(content, "cs").UseDirectory("Snapshots");
     }
 
-    public static Task VerifyEntryAsync(string memberSource) =>
+    public static Task VerifyAllMirrorsAsync(string source)
+    {
+        var driver = RunGenerator(source);
+        var result = driver.GetRunResult();
+        var trees = result.GeneratedTrees
+            .Where(t => t.FilePath.EndsWith(".g.cs", StringComparison.Ordinal)
+                && !t.FilePath.Contains(".Attributes."))
+            .OrderBy(t => t.FilePath, StringComparer.Ordinal)
+            .ToList();
+
+        var sb = new System.Text.StringBuilder();
+        foreach (var tree in trees)
+        {
+            sb.Append("// === ").Append(System.IO.Path.GetFileName(tree.FilePath)).Append(" ===\n");
+            sb.Append(tree.ToString());
+            sb.Append('\n');
+        }
+
+        return Verifier.Verify(sb.ToString(), "cs").UseDirectory("Snapshots");
+    }
+
+    public static Task VerifyEntryAsync(string memberSource, string flavour = "GDTask") =>
         VerifyMirrorAsync($$"""
             using System.Threading.Tasks;
             using EngineTask;
 
             namespace Sample;
 
-            [GenerateMirror(TaskFlavour.GDTask)]
+            [GenerateMirror(TaskFlavour.{{flavour}})]
             public partial class C
             {
                 {{memberSource}}
             }
-            """);
+            """, flavour);
 
     public static Task VerifyWithDiagnosticsAsync(string source)
     {
