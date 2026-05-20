@@ -6,11 +6,13 @@
     <Nullable>enable</Nullable>
     <IsRoslynComponent>true</IsRoslynComponent>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
-    <!-- RS2008 (analyzer release tracking) — deliberately suppressed
-         until the first stable (post-alpha) release, at which point
-         AnalyzerReleases.Shipped.md / Unshipped.md will be set up. -->
-    <NoWarn>$(NoWarn);RS2008</NoWarn>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Analyzer release tracking — Roslyn's RS2008 analyzer reads these. -->
+    <AdditionalFiles Include="AnalyzerReleases.Shipped.md" />
+    <AdditionalFiles Include="AnalyzerReleases.Unshipped.md" />
+  </ItemGroup>
 
   <!-- NuGet packaging — source-generator pattern. The generator DLL
        ships at analyzers/dotnet/cs (not lib/), so IncludeBuildOutput
