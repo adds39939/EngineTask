@@ -39,6 +39,22 @@ internal static class Diagnostics
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
+    public static readonly DiagnosticDescriptor UnknownCustomFlavour = new(
+        id: "ENGTASK005",
+        title: "Unknown custom flavour",
+        messageFormat: "[GenerateMirror(\"{0}\")] references a flavour that is not declared in any enginetask.json AdditionalFile; the mirror will be skipped",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor MalformedFlavourConfig = new(
+        id: "ENGTASK006",
+        title: "Malformed enginetask.json",
+        messageFormat: "Could not parse '{0}': {1}",
+        category: Category,
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
     public static readonly IReadOnlyDictionary<string, DiagnosticDescriptor> ById =
         new Dictionary<string, DiagnosticDescriptor>
         {
@@ -46,5 +62,7 @@ internal static class Diagnostics
             [NonPartialClass.Id] = NonPartialClass,
             [AsyncVoidMethod.Id] = AsyncVoidMethod,
             [MirrorMethodCollision.Id] = MirrorMethodCollision,
+            [UnknownCustomFlavour.Id] = UnknownCustomFlavour,
+            [MalformedFlavourConfig.Id] = MalformedFlavourConfig,
         };
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using EngineTask.Generator.CustomFlavours;
 using Microsoft.CodeAnalysis;
 
 namespace EngineTask.Generator;
@@ -48,10 +49,24 @@ public sealed class MirrorFlavour
         return ns + type.MetadataName;
     }
 
-    public static MirrorFlavour For(string id) => id switch
+    public static MirrorFlavour For(string id) => Find(id, FlavourCatalog.Empty)
+        ?? throw new ArgumentOutOfRangeException(nameof(id), id, "Unknown flavour id");
+
+    public static MirrorFlavour? Find(string id, FlavourCatalog catalog)
     {
-        Flavours.GDTaskFlavour.Id   => Flavours.GDTaskFlavour.Instance,
-        Flavours.UniTaskFlavour.Id  => Flavours.UniTaskFlavour.Instance,
-        _ => throw new ArgumentOutOfRangeException(nameof(id), id, "Unknown flavour id"),
-    };
+        if (id == Flavours.GDTaskFlavour.Id)  return Flavours.GDTaskFlavour.Instance;
+        if (id == Flavours.UniTaskFlavour.Id) return Flavours.UniTaskFlavour.Instance;
+        var custom = catalog.Find(id);
+        if (custom.HasValue) return FromCustom(custom.Value);
+        return null;
+    }
+
+    private static MirrorFlavour FromCustom(CustomFlavourData data)
+    {
+        var types = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var m in data.TypeMappings) types[m.From] = m.To;
+        var members = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var m in data.MemberMappings) members[m.From] = m.To;
+        return new MirrorFlavour(data.Id, data.NamespaceSuffix, types, members);
+    }
 }

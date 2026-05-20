@@ -13,16 +13,17 @@ namespace EngineTask
     [global::System.AttributeUsage(global::System.AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
     internal sealed class GenerateMirrorAttribute : global::System.Attribute
     {
-        public GenerateMirrorAttribute(TaskFlavour flavour)
-        {
-            Flavour = flavour;
-        }
+        // Use a built-in flavour from the TaskFlavour enum.
+        public GenerateMirrorAttribute(TaskFlavour flavour) { }
 
-        public TaskFlavour Flavour { get; }
+        // Use a custom flavour declared in an enginetask.json
+        // AdditionalFile. See docs/extending.md.
+        public GenerateMirrorAttribute(string flavourName) { }
 
         // Override the default mirror namespace (`{sourceNs}.GDTask` /
-        // `{sourceNs}.UniTask`). Useful when the surrounding solution
-        // already owns an `MyLib.UniTask` namespace.
+        // `{sourceNs}.UniTask` / `{sourceNs}.{CustomSuffix}`). Useful
+        // when the surrounding solution already owns an
+        // `MyLib.UniTask` namespace.
         public string? Namespace { get; set; }
 
         // Suffix appended to the mirror class's name — e.g.

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using EngineTask.Generator.CustomFlavours;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -10,22 +11,21 @@ internal readonly record struct MirrorTarget(
     string SourceNamespace,
     string ClassName,
     string FlavourId,
+    string TargetNamespaceSuffix,
     string? NamespaceOverride,
     string ClassSuffix,
     EquatableArray<string> Usings,
     EquatableArray<MirrorMethod> Methods,
     EquatableArray<DiagnosticInfo> Diagnostics)
 {
-    public MirrorFlavour Flavour => MirrorFlavour.For(FlavourId);
-
     public string MirrorNamespace
     {
         get
         {
             if (!string.IsNullOrEmpty(NamespaceOverride)) return NamespaceOverride!;
             return string.IsNullOrEmpty(SourceNamespace)
-                ? Flavour.TargetNamespaceSuffix
-                : $"{SourceNamespace}.{Flavour.TargetNamespaceSuffix}";
+                ? TargetNamespaceSuffix
+                : $"{SourceNamespace}.{TargetNamespaceSuffix}";
         }
     }
 
@@ -33,22 +33,18 @@ internal readonly record struct MirrorTarget(
 
     public string HintName
     {
-        // Default-case hint name preserves `{SourceNamespace}.{ClassName}.{Flavour}.g.cs`
-        // — including MirrorNamespace there would double up the flavour
-        // suffix ("Sample.GDTask.Calculator.GDTask.g.cs"). When the user
-        // overrides Namespace, that override replaces SourceNamespace in
-        // the hint instead, so attributes targeting the same flavour
-        // with different overrides still produce distinct hint names.
         get
         {
             var prefix = !string.IsNullOrEmpty(NamespaceOverride)
                 ? NamespaceOverride + "."
                 : string.IsNullOrEmpty(SourceNamespace) ? string.Empty : SourceNamespace + ".";
-            return $"{prefix}{MirrorClassName}.{Flavour.TargetNamespaceSuffix}.g.cs";
+            return $"{prefix}{MirrorClassName}.{TargetNamespaceSuffix}.g.cs";
         }
     }
 
-    public static IReadOnlyList<MirrorTarget> AllFromContext(GeneratorAttributeSyntaxContext ctx)
+    public static IReadOnlyList<MirrorTarget> AllFromContext(
+        GeneratorAttributeSyntaxContext ctx,
+        FlavourCatalog catalog)
     {
         var classSymbol = (INamedTypeSymbol)ctx.TargetSymbol;
         var classSyntax = (ClassDeclarationSyntax)ctx.TargetNode;
@@ -65,11 +61,23 @@ internal readonly record struct MirrorTarget(
         }
 
         var results = new List<MirrorTarget>(ctx.Attributes.Length);
+        var includeClassLevel = true;
         for (var i = 0; i < ctx.Attributes.Length; i++)
         {
             var attr = ctx.Attributes[i];
             var flavourId = ReadFlavourId(attr);
             if (flavourId is null) continue;
+
+            var flavour = MirrorFlavour.Find(flavourId, catalog);
+            if (flavour is null)
+            {
+                // ENGTASK005 — flavour not found in built-ins or catalog
+                classLevelDiagnostics.Add(DiagnosticInfo.Create(
+                    Generator.Diagnostics.UnknownCustomFlavour.Id,
+                    GetAttributeLocation(attr) ?? classSyntax.Identifier.GetLocation(),
+                    flavourId));
+                continue;
+            }
 
             var namespaceOverride = ReadNamedString(attr, "Namespace");
             var classSuffix = ReadNamedString(attr, "ClassSuffix") ?? string.Empty;
@@ -78,13 +86,27 @@ internal readonly record struct MirrorTarget(
                 ctx,
                 classSymbol,
                 classSyntax,
-                flavourId,
+                flavour,
                 namespaceOverride,
                 classSuffix,
-                // Only the first emitted target carries class-level diagnostics
-                // so they are not duplicated when a class has multiple attributes.
-                i == 0 ? classLevelDiagnostics : null);
+                includeClassLevel ? classLevelDiagnostics : null);
             results.Add(target);
+            includeClassLevel = false;
+        }
+
+        // Edge case: if no targets were produced (every attribute failed
+        // validation), still surface the class-level diagnostics by
+        // attaching them to a no-method placeholder. Without this the
+        // ENGTASK005/ENGTASK002 wouldn't fire because nothing flows
+        // downstream of the transform.
+        if (results.Count == 0 && classLevelDiagnostics.Count > 0)
+        {
+            results.Add(new MirrorTarget(
+                string.Empty, string.Empty, string.Empty, string.Empty,
+                null, string.Empty,
+                EquatableArray<string>.Empty,
+                EquatableArray<MirrorMethod>.Empty,
+                new EquatableArray<DiagnosticInfo>(classLevelDiagnostics.ToArray())));
         }
 
         return results;
@@ -94,14 +116,20 @@ internal readonly record struct MirrorTarget(
     {
         if (attr.ConstructorArguments.Length == 0) return null;
         var arg = attr.ConstructorArguments[0];
-        if (arg.Value is not int enumValue) return null;
-        // Mirror the order in AttributeSource.cs: 0 = GDTask, 1 = UniTask.
-        return enumValue switch
+
+        if (arg.Value is string customName && !string.IsNullOrEmpty(customName))
+            return customName;
+
+        if (arg.Value is int enumValue)
         {
-            0 => Flavours.GDTaskFlavour.Id,
-            1 => Flavours.UniTaskFlavour.Id,
-            _ => null,
-        };
+            return enumValue switch
+            {
+                0 => Flavours.GDTaskFlavour.Id,
+                1 => Flavours.UniTaskFlavour.Id,
+                _ => null,
+            };
+        }
+        return null;
     }
 
     private static string? ReadNamedString(AttributeData attr, string name)
@@ -114,17 +142,19 @@ internal readonly record struct MirrorTarget(
         return null;
     }
 
+    private static Location? GetAttributeLocation(AttributeData attr) =>
+        attr.ApplicationSyntaxReference?.GetSyntax().GetLocation();
+
     private static MirrorTarget BuildOne(
         GeneratorAttributeSyntaxContext ctx,
         INamedTypeSymbol classSymbol,
         ClassDeclarationSyntax classSyntax,
-        string flavourId,
+        MirrorFlavour flavour,
         string? namespaceOverride,
         string classSuffix,
         List<DiagnosticInfo>? classLevelDiagnostics)
     {
         var compilation = ctx.SemanticModel.Compilation;
-        var flavour = MirrorFlavour.For(flavourId);
 
         var taskType         = compilation.GetTypeByMetadataName("System.Threading.Tasks.Task");
         var taskOfTType      = compilation.GetTypeByMetadataName("System.Threading.Tasks.Task`1");
@@ -137,10 +167,6 @@ internal readonly record struct MirrorTarget(
             ? new List<DiagnosticInfo>(classLevelDiagnostics)
             : new List<DiagnosticInfo>();
 
-        // ENGTASK004 prep: enumerate signatures already declared in a
-        // user-written partial of the target mirror class. The
-        // mirror's namespace and class name now respect attribute
-        // overrides, so the lookup composes the same way.
         var sourceNs = classSymbol.ContainingNamespace.IsGlobalNamespace
             ? string.Empty
             : classSymbol.ContainingNamespace.ToDisplayString();
@@ -170,7 +196,6 @@ internal readonly record struct MirrorTarget(
             if (method.MethodKind != MethodKind.Ordinary) continue;
             if (HasMirrorIgnore(method, mirrorIgnoreType)) continue;
 
-            // ENGTASK003: async void
             if (method.IsAsync && method.ReturnsVoid)
             {
                 diagnostics.Add(DiagnosticInfo.Create(
@@ -180,7 +205,6 @@ internal readonly record struct MirrorTarget(
                 continue;
             }
 
-            // ENGTASK004: collision with user-written partial of the mirror
             if (existingSignatures.Contains((method.Name, method.Parameters.Length)))
             {
                 diagnostics.Add(DiagnosticInfo.Create(
@@ -206,7 +230,8 @@ internal readonly record struct MirrorTarget(
         return new MirrorTarget(
             sourceNs,
             classSymbol.Name,
-            flavourId,
+            flavour.Id,
+            flavour.TargetNamespaceSuffix,
             namespaceOverride,
             classSuffix,
             new EquatableArray<string>(ExtractUsings(classSyntax).ToArray()),
@@ -221,9 +246,6 @@ internal readonly record struct MirrorTarget(
 
         void Add(UsingDirectiveSyntax u)
         {
-            // The mirror rewrites every Task / Task<T> reference to a fully-
-            // qualified flavour-specific name, so this using would just become
-            // an unused-using warning in the consumer's compilation.
             if (u.Alias is null && u.StaticKeyword == default
                 && u.Name?.ToString() == "System.Threading.Tasks")
                 return;

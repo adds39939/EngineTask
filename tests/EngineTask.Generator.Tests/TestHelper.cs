@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Text;
 using VerifyXunit;
 
 namespace EngineTask.Generator.Tests;
@@ -95,7 +97,26 @@ internal static class TestHelper
         return Verifier.Verify(sb.ToString(), "cs").UseDirectory("Snapshots");
     }
 
-    private static GeneratorDriver RunGenerator(string source)
+    public static Task VerifyMirrorWithCatalogAsync(
+        string source,
+        string catalogJson,
+        string flavourSuffix)
+    {
+        var driver = RunGenerator(source,
+            new[] { (AdditionalText)new InMemoryAdditionalText("enginetask.json", catalogJson) });
+        var result = driver.GetRunResult();
+        var endsWith = "." + flavourSuffix + ".g.cs";
+        var mirrorTree = result.GeneratedTrees.FirstOrDefault(t =>
+            t.FilePath.EndsWith(endsWith, StringComparison.Ordinal)
+            && !t.FilePath.Contains(".Attributes."));
+
+        var content = mirrorTree?.ToString() ?? "<no mirror emitted>";
+        return Verifier.Verify(content, "cs").UseDirectory("Snapshots");
+    }
+
+    private static GeneratorDriver RunGenerator(
+        string source,
+        IReadOnlyCollection<AdditionalText>? additionalTexts = null)
     {
         var syntaxTree = CSharpSyntaxTree.ParseText(source);
         var compilation = CSharpCompilation.Create(
@@ -105,8 +126,22 @@ internal static class TestHelper
             options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         var generator = new EngineTaskGenerator();
-        GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(
+            generators: new[] { generator.AsSourceGenerator() },
+            additionalTexts: additionalTexts);
         return driver.RunGenerators(compilation);
+    }
+
+    private sealed class InMemoryAdditionalText : AdditionalText
+    {
+        private readonly SourceText _text;
+        public InMemoryAdditionalText(string path, string text)
+        {
+            Path = path;
+            _text = SourceText.From(text);
+        }
+        public override string Path { get; }
+        public override SourceText GetText(System.Threading.CancellationToken cancellationToken = default) => _text;
     }
 
     private static MetadataReference[] LoadReferences()
