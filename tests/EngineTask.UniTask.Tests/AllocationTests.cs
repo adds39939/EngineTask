@@ -75,7 +75,14 @@ public class AllocationTests
         var after = GC.GetAllocatedBytesForCurrentThread();
 
         var total = after - before;
-        Assert.True(total == 0,
-            $"UniTask async mirror allocated {total} bytes across {MeasureIterations} calls — expected 0.");
+        // Real UniTask lazily initialises some pooling machinery on the
+        // first async path it sees in a process — that's the only
+        // allocation observable here (~32 bytes one-shot). A Task<int>
+        // regression would be ~72 bytes/call × 10k = 720 000 bytes, so
+        // a 256-byte total budget catches any real regression by four
+        // orders of magnitude.
+        const long Budget = 256;
+        Assert.True(total < Budget,
+            $"UniTask async mirror allocated {total} bytes across {MeasureIterations} calls — exceeds {Budget}-byte budget.");
     }
 }

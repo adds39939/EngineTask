@@ -24,4 +24,4 @@ Packages/manifest.json UniTask installed via Cysharp's UPM git URL
 
 `WorkService` is authored against `System.Threading.Tasks.Task` exactly once. The generator emits a parallel `MyGame.Core.UniTask.WorkService` whose `ComputeAsync` returns `Cysharp.Threading.Tasks.UniTask<int>`. The `await` in `WorkBehaviour.Start` resolves against the UniTask mirror — the C# compiler builds the awaiter chain with `AsyncUniTaskMethodBuilder`, allocating no `Task`.
 
-The corresponding *automated* coverage of "does the generator emit valid UniTask code" lives in `tests/EngineTask.UniTask.Tests/`, which uses a minimal Cysharp.Threading.Tasks shim to run end-to-end without Unity.
+The corresponding *automated* coverage of "does the generator emit valid UniTask code" lives in `tests/EngineTask.UniTask.Tests/`, which references the real Cysharp UniTask NuGet package — it works in a plain .NET 8 host as long as you stick to synchronously-completing awaits (no Unity player-loop scheduling).
