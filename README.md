@@ -94,6 +94,19 @@ dotnet run --project tests/EngineTask.Benchmarks -c Release -- --job short --fil
 dotnet test EngineTask.slnx
 ```
 
+CI runs the same command on every PR and every push to `main` via [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+## Releasing
+
+Tagged releases are published to nuget.org by [`.github/workflows/release.yml`](.github/workflows/release.yml):
+
+```
+git tag v0.1.0-alpha
+git push origin v0.1.0-alpha
+```
+
+The workflow runs tests, packs `src/EngineTask.Generator` with `Version` derived from the tag, pushes to nuget.org (requires the `NUGET_API_KEY` repository secret), and creates a GitHub Release with the `.nupkg` attached.
+
 ## License
 
 [MIT](LICENSE).

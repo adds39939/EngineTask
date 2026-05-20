@@ -1,0 +1,94 @@
+# Release workflow
+#
+# Triggers:
+#   - Tag push matching v*  (e.g. `git tag v0.1.0-alpha && git push --tags`)
+#   - Manual: Actions tab → "Release" → Run workflow → enter version
+#
+# Required repository secret:
+#   NUGET_API_KEY — a nuget.org API key with push permission for the
+#   EngineTask package. Create at https://www.nuget.org/account/apikeys
+#   and add at Settings → Secrets and variables → Actions.
+#
+# What it does:
+#   1. Runs the full test suite in Release. The push is gated on
+#      tests passing.
+#   2. Packs src/EngineTask.Generator with the version derived from
+#      the tag (or the workflow_dispatch input).
+#   3. Pushes the .nupkg to nuget.org. --skip-duplicate so re-running
+#      a release isn't fatal.
+#   4. For tag-triggered runs, creates a GitHub Release with the
+#      .nupkg attached and auto-generated release notes.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 0.1.0-alpha). Must match an existing tag for a GitHub Release to be created.'
+        required: true
+
+permissions:
+  contents: write   # For creating the GitHub Release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          fi
+          echo "Using version: $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Restore
+        run: dotnet restore EngineTask.slnx
+
+      - name: Test (Release)
+        run: dotnet test EngineTask.slnx -c Release --no-restore --logger "console;verbosity=normal"
+
+      - name: Pack
+        run: |
+          dotnet pack src/EngineTask.Generator/EngineTask.Generator.csproj \
+            -c Release \
+            -o ./artifacts \
+            /p:Version=${{ steps.version.outputs.version }}
+
+      - name: Push to NuGet
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if [ -z "$NUGET_API_KEY" ]; then
+            echo "::error::NUGET_API_KEY secret is not set. Add it at Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          dotnet nuget push "./artifacts/EngineTask.${{ steps.version.outputs.version }}.nupkg" \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+      - name: Create GitHub Release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./artifacts/*.nupkg
+          generate_release_notes: true
+          name: EngineTask ${{ steps.version.outputs.version }}
+          tag_name: ${{ github.ref_name }}
