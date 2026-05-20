@@ -17,7 +17,7 @@ internal static class MirrorEmitter
         if (target.Usings.Length > 0) sb.Append('\n');
         sb.Append("namespace ").Append(target.MirrorNamespace).Append('\n');
         sb.Append("{\n");
-        sb.Append("    public partial class ").Append(target.ClassName).Append('\n');
+        sb.Append("    public partial class ").Append(target.MirrorClassName).Append('\n');
         sb.Append("    {\n");
         foreach (var method in target.Methods)
         {

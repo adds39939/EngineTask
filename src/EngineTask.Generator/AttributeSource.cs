@@ -23,6 +23,17 @@ internal static class AttributeSource
                 }
 
                 public TaskFlavour Flavour { get; }
+
+                // Override the default mirror namespace (`{sourceNs}.GDTask` /
+                // `{sourceNs}.UniTask`). Useful when the surrounding solution
+                // already owns an `MyLib.UniTask` namespace.
+                public string? Namespace { get; set; }
+
+                // Suffix appended to the mirror class's name — e.g.
+                // [GenerateMirror(GDTask, ClassSuffix = "GD")] turns class
+                // `WorkService` into mirror `WorkServiceGD` (still in the
+                // mirror namespace).
+                public string? ClassSuffix { get; set; }
             }
 
             [global::System.AttributeUsage(global::System.AttributeTargets.Method, AllowMultiple = false, Inherited = false)]

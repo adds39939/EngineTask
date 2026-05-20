@@ -10,21 +10,43 @@ internal readonly record struct MirrorTarget(
     string SourceNamespace,
     string ClassName,
     string FlavourId,
+    string? NamespaceOverride,
+    string ClassSuffix,
     EquatableArray<string> Usings,
     EquatableArray<MirrorMethod> Methods,
     EquatableArray<DiagnosticInfo> Diagnostics)
 {
     public MirrorFlavour Flavour => MirrorFlavour.For(FlavourId);
 
-    public string MirrorNamespace =>
-        string.IsNullOrEmpty(SourceNamespace)
-            ? Flavour.TargetNamespaceSuffix
-            : $"{SourceNamespace}.{Flavour.TargetNamespaceSuffix}";
+    public string MirrorNamespace
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(NamespaceOverride)) return NamespaceOverride!;
+            return string.IsNullOrEmpty(SourceNamespace)
+                ? Flavour.TargetNamespaceSuffix
+                : $"{SourceNamespace}.{Flavour.TargetNamespaceSuffix}";
+        }
+    }
 
-    public string HintName =>
-        string.IsNullOrEmpty(SourceNamespace)
-            ? $"{ClassName}.{Flavour.TargetNamespaceSuffix}.g.cs"
-            : $"{SourceNamespace}.{ClassName}.{Flavour.TargetNamespaceSuffix}.g.cs";
+    public string MirrorClassName => ClassName + ClassSuffix;
+
+    public string HintName
+    {
+        // Default-case hint name preserves `{SourceNamespace}.{ClassName}.{Flavour}.g.cs`
+        // — including MirrorNamespace there would double up the flavour
+        // suffix ("Sample.GDTask.Calculator.GDTask.g.cs"). When the user
+        // overrides Namespace, that override replaces SourceNamespace in
+        // the hint instead, so attributes targeting the same flavour
+        // with different overrides still produce distinct hint names.
+        get
+        {
+            var prefix = !string.IsNullOrEmpty(NamespaceOverride)
+                ? NamespaceOverride + "."
+                : string.IsNullOrEmpty(SourceNamespace) ? string.Empty : SourceNamespace + ".";
+            return $"{prefix}{MirrorClassName}.{Flavour.TargetNamespaceSuffix}.g.cs";
+        }
+    }
 
     public static IReadOnlyList<MirrorTarget> AllFromContext(GeneratorAttributeSyntaxContext ctx)
     {
@@ -45,14 +67,20 @@ internal readonly record struct MirrorTarget(
         var results = new List<MirrorTarget>(ctx.Attributes.Length);
         for (var i = 0; i < ctx.Attributes.Length; i++)
         {
-            var flavourId = ReadFlavourId(ctx.Attributes[i]);
+            var attr = ctx.Attributes[i];
+            var flavourId = ReadFlavourId(attr);
             if (flavourId is null) continue;
+
+            var namespaceOverride = ReadNamedString(attr, "Namespace");
+            var classSuffix = ReadNamedString(attr, "ClassSuffix") ?? string.Empty;
 
             var target = BuildOne(
                 ctx,
                 classSymbol,
                 classSyntax,
                 flavourId,
+                namespaceOverride,
+                classSuffix,
                 // Only the first emitted target carries class-level diagnostics
                 // so they are not duplicated when a class has multiple attributes.
                 i == 0 ? classLevelDiagnostics : null);
@@ -76,11 +104,23 @@ internal readonly record struct MirrorTarget(
         };
     }
 
+    private static string? ReadNamedString(AttributeData attr, string name)
+    {
+        foreach (var pair in attr.NamedArguments)
+        {
+            if (pair.Key == name && pair.Value.Value is string s && !string.IsNullOrEmpty(s))
+                return s;
+        }
+        return null;
+    }
+
     private static MirrorTarget BuildOne(
         GeneratorAttributeSyntaxContext ctx,
         INamedTypeSymbol classSymbol,
         ClassDeclarationSyntax classSyntax,
         string flavourId,
+        string? namespaceOverride,
+        string classSuffix,
         List<DiagnosticInfo>? classLevelDiagnostics)
     {
         var compilation = ctx.SemanticModel.Compilation;
@@ -98,13 +138,21 @@ internal readonly record struct MirrorTarget(
             : new List<DiagnosticInfo>();
 
         // ENGTASK004 prep: enumerate signatures already declared in a
-        // user-written partial of the target mirror class.
+        // user-written partial of the target mirror class. The
+        // mirror's namespace and class name now respect attribute
+        // overrides, so the lookup composes the same way.
         var sourceNs = classSymbol.ContainingNamespace.IsGlobalNamespace
             ? string.Empty
             : classSymbol.ContainingNamespace.ToDisplayString();
-        var mirrorFullName = string.IsNullOrEmpty(sourceNs)
-            ? $"{flavour.TargetNamespaceSuffix}.{classSymbol.Name}"
-            : $"{sourceNs}.{flavour.TargetNamespaceSuffix}.{classSymbol.Name}";
+        var mirrorNs = !string.IsNullOrEmpty(namespaceOverride)
+            ? namespaceOverride!
+            : string.IsNullOrEmpty(sourceNs)
+                ? flavour.TargetNamespaceSuffix
+                : $"{sourceNs}.{flavour.TargetNamespaceSuffix}";
+        var mirrorClassName = classSymbol.Name + classSuffix;
+        var mirrorFullName = string.IsNullOrEmpty(mirrorNs)
+            ? mirrorClassName
+            : $"{mirrorNs}.{mirrorClassName}";
         var existingMirrorType = compilation.GetTypeByMetadataName(mirrorFullName);
         var existingSignatures = new HashSet<(string Name, int Arity)>();
         if (existingMirrorType is not null)
@@ -139,7 +187,7 @@ internal readonly record struct MirrorTarget(
                     Generator.Diagnostics.MirrorMethodCollision.Id,
                     GetMethodIdentifierLocation(method),
                     method.Name,
-                    classSymbol.Name));
+                    mirrorClassName));
                 continue;
             }
 
@@ -159,6 +207,8 @@ internal readonly record struct MirrorTarget(
             sourceNs,
             classSymbol.Name,
             flavourId,
+            namespaceOverride,
+            classSuffix,
             new EquatableArray<string>(ExtractUsings(classSyntax).ToArray()),
             new EquatableArray<MirrorMethod>(methods.ToArray()),
             new EquatableArray<DiagnosticInfo>(diagnostics.ToArray()));
