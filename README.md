@@ -88,19 +88,19 @@ The central claim, expressed in bytes per call. Measured on .NET 10.0.0, x64, Be
 
 ### Synchronous path — `Task.FromResult(a + b)`
 
-| Method | Mean | Allocated |
-|---|---:|---:|
-| `Task_FromResult` (baseline) | 3.89 ns | **72 B** |
-| `GDTask_FromResult` | 4.03 ns | **0 B** |
-| `UniTask_FromResult` | 0.00 ns | **0 B** |
+| Method | Allocated |
+|---|---:|
+| `Task_FromResult` (baseline) | **72 B** |
+| `GDTask_FromResult` | **0 B** |
+| `UniTask_FromResult` | **0 B** |
 
 ### Async-keyword path — `async Task<int> { await Task.CompletedTask; return a + b; }`
 
-| Method | Mean | Allocated |
-|---|---:|---:|
-| `Task_AsyncFromCompletedTask` (baseline) | 6.80 ns | **72 B** |
-| `GDTask_AsyncFromCompletedTask` | 24.39 ns | **0 B** |
-| `UniTask_AsyncFromCompletedTask` | 3.87 ns | **0 B** |
+| Method | Allocated |
+|---|---:|
+| `Task_AsyncFromCompletedTask` (baseline) | **72 B** |
+| `GDTask_AsyncFromCompletedTask` | **0 B** |
+| `UniTask_AsyncFromCompletedTask` | **0 B** |
 
 To reproduce:
 
