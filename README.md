@@ -102,8 +102,6 @@ The central claim, expressed in bytes per call. Measured on .NET 10.0.0, x64, Be
 | `GDTask_AsyncFromCompletedTask` | 24.39 ns | **0 B** |
 | `UniTask_AsyncFromCompletedTask` | 3.87 ns | **0 B** |
 
-Both GDTask and UniTask are the real Cysharp/DE-YU NuGet packages — not stubs. The mirrors are also asserted to be zero-alloc as a regression test in `dotnet test`, so a future change that breaks the claim fails the build, not just the manual benchmark.
-
 To reproduce:
 
 ```
@@ -170,22 +168,6 @@ dotnet test EngineTask.slnx
 ```
 
 The generator project targets `netstandard2.0` (a Roslyn requirement). Every other project targets `net10.0`. CI runs the same `dotnet test` on every push to `main` and every pull request via [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
-
-## Repository layout
-
-```
-src/
-  EngineTask.Generator/            IIncrementalGenerator (netstandard2.0)
-samples/
-  EngineTask.Sample.Core/          library using [GenerateMirror(GDTask)]
-  EngineTask.Sample.Unity/         Unity manual-smoke-test sample
-tests/
-  EngineTask.Generator.Tests/      Verify snapshot tests
-  EngineTask.GDTask.Tests/         runtime integration + allocation
-  EngineTask.UniTask.Tests/        runtime integration + allocation
-  EngineTask.Benchmarks/           BenchmarkDotNet allocation measurements
-docs/                              user-facing documentation
-```
 
 ## Contributing
 
