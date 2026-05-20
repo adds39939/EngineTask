@@ -43,6 +43,11 @@ public partial class Calculator
 
 Same source, two state machines, two allocation profiles.
 
+## Docs
+
+- [`docs/translation-tables.md`](docs/translation-tables.md) — every type/member mapping for every flavour. Generated from the in-code tables; checked by a unit test so it cannot drift.
+- [`docs/cancellation.md`](docs/cancellation.md) — recommended `CancellationToken` patterns for Godot and Unity consumers.
+
 ## Repository layout
 
 ```
