@@ -68,7 +68,7 @@ dotnet add package EngineTask
 
 EngineTask ships as a Roslyn analyzer — no runtime dependency, no DLL in your output. The `[GenerateMirror]` and `[MirrorIgnore]` attributes are emitted into your compilation; you don't need a separate attributes package.
 
-You'll also need a runtime reference to the task-like you're mirroring against — `GDTask` from the [DE-YU/GDTask](https://github.com/DE-YU/GDTask) package for Godot, or [Cysharp/UniTask](https://github.com/Cysharp/UniTask) for Unity.
+You'll also need a runtime reference to the task-like you're mirroring against — `GDTask` from the [Delsin-Yu/GDTask.Nuget](https://github.com/Delsin-Yu/GDTask.Nuget) package for Godot, or [Cysharp/UniTask](https://github.com/Cysharp/UniTask) for Unity.
 
 ## How it's allocation-free
 
