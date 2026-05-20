@@ -40,6 +40,9 @@ _ReSharper*/
 ## Verify — keep *.verified.*, drop transient *.received.*
 *.received.*
 
+## BenchmarkDotNet output
+BenchmarkDotNet.Artifacts/
+
 ## OS
 .DS_Store
 Thumbs.db
