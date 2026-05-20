@@ -14,7 +14,7 @@ Early development. See [`EngineTask-Plan.md`](EngineTask-Plan.md) for the seven-
 - [x] **Phase 4** — UniTask flavour + flavour abstraction. `[GenerateMirror(TaskFlavour.UniTask)]` emits a `.UniTask` mirror; one class can carry both `[GenerateMirror(GDTask)]` and `[GenerateMirror(UniTask)]` and gets two mirrors. End-to-end integration test in `EngineTask.UniTask.Tests` runs against a minimal Cysharp.Threading.Tasks shim; a folder-layout Unity sample documents the manual smoke-test path.
 - [x] **Phase 5** — Allocation verification: BenchmarkDotNet project + per-thread allocation regression tests. See [Allocation numbers](#allocation-numbers) below.
 - [ ] **Phase 6** — Configuration + niceties + first NuGet release.
-- [ ] **Phase 7** — User-defined flavours.
+- [x] **Phase 7** — User-defined flavours via `enginetask.json` AdditionalFile. `[GenerateMirror("CustomName")]` looks up the catalog at compile time; `ENGTASK005` (unknown flavour) and `ENGTASK006` (malformed config) flag misuse. See [`docs/extending.md`](docs/extending.md).
 
 ## Quick look
 
@@ -47,6 +47,7 @@ Same source, two state machines, two allocation profiles.
 
 - [`docs/translation-tables.md`](docs/translation-tables.md) — every type/member mapping for every flavour. Generated from the in-code tables; checked by a unit test so it cannot drift.
 - [`docs/cancellation.md`](docs/cancellation.md) — recommended `CancellationToken` patterns for Godot and Unity consumers.
+- [`docs/extending.md`](docs/extending.md) — how to add a custom flavour via `enginetask.json` (Phase 7), with a Unity `Awaitable` worked example.
 
 ## Repository layout
 
