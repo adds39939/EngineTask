@@ -1,18 +1,4 @@
-# Auto-normalize line endings; default to LF in the repo
+# All text files in this repo use LF line endings, in both the
+# working tree and the index. Set core.autocrlf=false locally if
+# your editor still inserts CRLF.
 * text=auto eol=lf
-
-# Windows-native tooling files stay CRLF in the working tree
-*.sln      text eol=crlf
-*.slnx     text eol=crlf
-*.csproj   text eol=crlf
-*.props    text eol=crlf
-*.targets  text eol=crlf
-*.bat      text eol=crlf
-*.cmd      text eol=crlf
-*.ps1      text eol=crlf
-
-# Unix scripts always LF
-*.sh       text eol=lf
-
-# Verify snapshots — keep stable line endings so diffs aren't noisy
-*.verified.cs  text eol=lf
