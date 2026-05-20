@@ -17,17 +17,41 @@ internal static class MirrorEmitter
         if (target.Usings.Length > 0) sb.Append('\n');
         sb.Append("namespace ").Append(target.MirrorNamespace).Append('\n');
         sb.Append("{\n");
-        sb.Append("    public partial class ").Append(target.MirrorClassName).Append('\n');
-        sb.Append("    {\n");
+
+        // Nested types: emit one `public partial class Outer` wrapper
+        // per containing type so the mirror preserves the source's
+        // nesting structure. Indentation deepens by 4 per level.
+        var depth = 1;
+        foreach (var outer in target.ContainingTypes)
+        {
+            sb.Append(Indent(depth)).Append("public partial class ").Append(outer).Append('\n');
+            sb.Append(Indent(depth)).Append("{\n");
+            depth++;
+        }
+
+        sb.Append(Indent(depth)).Append("public partial class ").Append(target.MirrorClassName).Append('\n');
+        sb.Append(Indent(depth)).Append("{\n");
+        depth++;
+
+        var methodIndent = Indent(depth);
         foreach (var method in target.Methods)
         {
             foreach (var line in method.Source.TrimEnd().Split('\n'))
             {
-                sb.Append("        ").Append(line).Append('\n');
+                sb.Append(methodIndent).Append(line).Append('\n');
             }
         }
-        sb.Append("    }\n");
+
+        // Close all opened blocks, deepest first.
+        for (var i = 0; i < target.ContainingTypes.Length + 1; i++)
+        {
+            depth--;
+            sb.Append(Indent(depth)).Append("}\n");
+        }
+
         sb.Append("}\n");
         return sb.ToString();
     }
+
+    private static string Indent(int depth) => new(' ', depth * 4);
 }

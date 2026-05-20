@@ -14,6 +14,7 @@ internal readonly record struct MirrorTarget(
     string TargetNamespaceSuffix,
     string? NamespaceOverride,
     string ClassSuffix,
+    EquatableArray<string> ContainingTypes,
     EquatableArray<string> Usings,
     EquatableArray<MirrorMethod> Methods,
     EquatableArray<DiagnosticInfo> Diagnostics)
@@ -38,7 +39,10 @@ internal readonly record struct MirrorTarget(
             var prefix = !string.IsNullOrEmpty(NamespaceOverride)
                 ? NamespaceOverride + "."
                 : string.IsNullOrEmpty(SourceNamespace) ? string.Empty : SourceNamespace + ".";
-            return $"{prefix}{MirrorClassName}.{TargetNamespaceSuffix}.g.cs";
+            var typePath = ContainingTypes.Length > 0
+                ? string.Join(".", ContainingTypes) + "." + MirrorClassName
+                : MirrorClassName;
+            return $"{prefix}{typePath}.{TargetNamespaceSuffix}.g.cs";
         }
     }
 
@@ -105,6 +109,7 @@ internal readonly record struct MirrorTarget(
                 string.Empty, string.Empty, string.Empty, string.Empty,
                 null, string.Empty,
                 EquatableArray<string>.Empty,
+                EquatableArray<string>.Empty,
                 EquatableArray<MirrorMethod>.Empty,
                 new EquatableArray<DiagnosticInfo>(classLevelDiagnostics.ToArray())));
         }
@@ -170,15 +175,29 @@ internal readonly record struct MirrorTarget(
         var sourceNs = classSymbol.ContainingNamespace.IsGlobalNamespace
             ? string.Empty
             : classSymbol.ContainingNamespace.ToDisplayString();
+
+        // Walk outer types (outermost first) so nested classes mirror
+        // as `partial class Outer { partial class Inner { ... } }`.
+        var containingTypes = new List<string>();
+        for (var outer = classSymbol.ContainingType; outer is not null; outer = outer.ContainingType)
+            containingTypes.Insert(0, outer.Name);
+
         var mirrorNs = !string.IsNullOrEmpty(namespaceOverride)
             ? namespaceOverride!
             : string.IsNullOrEmpty(sourceNs)
                 ? flavour.TargetNamespaceSuffix
                 : $"{sourceNs}.{flavour.TargetNamespaceSuffix}";
         var mirrorClassName = classSymbol.Name + classSuffix;
+
+        // Compose the mirror's metadata name for ENGTASK004 collision
+        // lookup. For nested types, outer classes use '+' between them
+        // (metadata-name convention).
+        var mirrorTypePath = containingTypes.Count > 0
+            ? string.Join("+", containingTypes) + "+" + mirrorClassName
+            : mirrorClassName;
         var mirrorFullName = string.IsNullOrEmpty(mirrorNs)
-            ? mirrorClassName
-            : $"{mirrorNs}.{mirrorClassName}";
+            ? mirrorTypePath
+            : $"{mirrorNs}.{mirrorTypePath}";
         var existingMirrorType = compilation.GetTypeByMetadataName(mirrorFullName);
         var existingSignatures = new HashSet<(string Name, int Arity)>();
         if (existingMirrorType is not null)
@@ -234,6 +253,7 @@ internal readonly record struct MirrorTarget(
             flavour.TargetNamespaceSuffix,
             namespaceOverride,
             classSuffix,
+            new EquatableArray<string>(containingTypes.ToArray()),
             new EquatableArray<string>(ExtractUsings(classSyntax).ToArray()),
             new EquatableArray<MirrorMethod>(methods.ToArray()),
             new EquatableArray<DiagnosticInfo>(diagnostics.ToArray()));
