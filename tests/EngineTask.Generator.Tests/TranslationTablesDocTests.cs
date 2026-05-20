@@ -33,7 +33,7 @@ public class TranslationTablesDocTests
 
     private static string SolutionRoot()
     {
-        // The test executable runs in tests/EngineTask.Generator.Tests/bin/Debug/net8.0 —
+        // The test executable runs in tests/EngineTask.Generator.Tests/bin/Debug/net10.0 —
         // walk up to the directory that holds the .slnx.
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "EngineTask.slnx")))
