@@ -167,7 +167,7 @@ cd EngineTask
 dotnet test EngineTask.slnx
 ```
 
-The generator project targets `netstandard2.0` (a Roslyn requirement). Every other project targets `net10.0`. CI runs the same `dotnet test` on every push to `main` and every pull request via [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+The generator project targets `netstandard2.0` (a Roslyn requirement). Every other project targets `net10.0`.
 
 ## Contributing
 
