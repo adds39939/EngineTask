@@ -64,7 +64,7 @@ When the GameObject is destroyed, the in-flight `ComputeAsync` is cancelled.
 
 ## Why not auto-inject
 
-The plan deliberately excludes "magic" cancellation insertion (see [`EngineTask-Plan.md`](../EngineTask-Plan.md) §3 Phase 6). Two reasons:
+EngineTask deliberately does not auto-inject engine-specific tokens. Two reasons:
 
 1. **Source-side authoring stays portable.** A source library marked with `[GenerateMirror]` may target any number of flavours, including ones that don't exist yet. The set of "this engine's cancellation idiom" is per-engine and per-version; encoding it in the generator would make adding a new flavour a breaking change for existing libraries.
 2. **Explicit is cheap and correct.** A `CancellationToken cancellationToken` parameter is one line at the source-library API boundary, and the call site is the right place to choose which token to pass (node-lifetime, request-lifetime, manual `CancellationTokenSource`, `CancellationToken.None`).

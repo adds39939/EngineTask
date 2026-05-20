@@ -1,6 +1,6 @@
 # EngineTask.Sample.Unity
 
-Folder-layout sample showing how to consume the EngineTask UniTask mirror from a Unity project. **This is not built in CI** — Unity in CI is a known pain (see [`EngineTask-Plan.md`](../../EngineTask-Plan.md) §5). Smoke-test it manually before each public release.
+Folder-layout sample showing how to consume the EngineTask UniTask mirror from a Unity project. **This is not built in CI** — Unity in CI is a known pain. Smoke-test it manually before each public release.
 
 ## Layout
 

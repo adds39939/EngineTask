@@ -1,58 +1,57 @@
-\# EngineTask — Agent Guidelines
+# EngineTask — agent guidelines
 
+For AI assistants working in this repo. Read before making changes.
 
+## What this project is
 
-\## Read first
+EngineTask is a C# source generator that emits parallel, allocation-free mirrors of `Task`-based async code targeting engine-specific task-likes — `GDTask` for Godot, `UniTask` for Unity, and user-defined flavours declared via `enginetask.json`. The central technical claim is **zero `Task` allocation on the mirror path**; that claim is verified by BenchmarkDotNet in `tests/EngineTask.Benchmarks/` and asserted as a regression test in each flavour integration project.
 
-\- EngineTask-Plan.md is the source of truth. Re-read it at the 
+The user-facing description lives in `README.md`; the user-facing extension and configuration docs live under `docs/`.
 
-&#x20; start of each task.
+## Non-negotiable constraints
 
-\- Do not work ahead of the current phase.
+- `src/EngineTask.Generator/` targets **netstandard2.0**. Don't bump it — Roslyn analyzers load there.
+- The generator is an `IIncrementalGenerator`. Don't use the legacy `ISourceGenerator`.
+- Match types by **symbol identity** via `SymbolEqualityComparer.Default`. Never string-match on type names — consumers alias.
+- The incremental pipeline must carry only **equatable** data. Use `EquatableArray<T>` for collections, `record struct`s with value-typed fields elsewhere. The single exception is `EngineTaskGenerator.ContextHolder`, a deliberate non-equatable wrapper used to defer transform-time work until after the AdditionalFiles catalog is `Combine`d in — and that costs the transform-stage cache.
+- Diagnostic IDs `ENGTASK001`–`ENGTASK006` are catalogued in `src/EngineTask.Generator/AnalyzerReleases.Shipped.md` under "Release 0.1". Adding a new diagnostic requires an entry in `AnalyzerReleases.Unshipped.md`; the `RS2008` analyzer enforces this at build time.
 
+## Workflow
 
+- After any change in `src/EngineTask.Generator/`: run `dotnet test tests/EngineTask.Generator.Tests/` and review every snapshot diff manually. Verify writes a `.received.cs` next to each `.verified.cs`; the diff between them IS the spec change. Don't blindly promote — read what changed.
+- After any change touching the rewriter, the flavour translation tables, or `MirrorTarget.AllFromContext`: also run the GDTask and UniTask integration test projects.
+- The allocation tests in `tests/EngineTask.GDTask.Tests/AllocationTests.cs` and `tests/EngineTask.UniTask.Tests/AllocationTests.cs` are the regression boundary for the central no-alloc claim. The async case is gated on `#if !DEBUG` because the C# compiler emits async state machines as classes in Debug builds.
+- Commit per logical unit of work with a clear message.
 
-\## Constraints
+## What to flag (not silently change)
 
-\- Generator and Attributes projects target netstandard2.0. 
+Stop and confirm with the user before:
 
-&#x20; Non-negotiable.
+- Adding a built-in translation-table entry. Every new mapping is a public-API decision and a snapshot regression — talk through the change first.
+- Changing attribute shape — `[GenerateMirror]` constructor signature, named parameters, or the `TaskFlavour` enum.
+- Changing the default mirror-namespace convention (`{SourceNamespace}.{TargetSuffix}`) or the hint-name shape. Roslyn keys generated source by hint name; renaming breaks downstream tooling.
+- Touching `src/EngineTask.Generator/EngineTask.Generator.csproj` packaging metadata (`PackageId`, license expression, README path, `analyzers/dotnet/cs` packaging directive).
 
-\- Use IIncrementalGenerator, not ISourceGenerator.
+## Repository layout
 
-\- Match types by symbol (SymbolEqualityComparer), not by string.
+```
+src/EngineTask.Generator/        IIncrementalGenerator (netstandard2.0)
+  Flavours/                      per-flavour translation tables
+  CustomFlavours/                user-defined flavours (enginetask.json + parser)
+  AnalyzerReleases.*.md          RS2008 analyzer release tracking
+samples/                         sample consumers (GDTask + Unity manual)
+tests/
+  EngineTask.Generator.Tests/    Verify snapshot tests
+  EngineTask.GDTask.Tests/       runtime integration + allocation
+  EngineTask.UniTask.Tests/      runtime integration + allocation
+  EngineTask.Benchmarks/         BenchmarkDotNet allocation measurements
+docs/                            user-facing documentation
+.github/workflows/               CI + release automation
+```
 
-\- Snapshot tests use Verify.SourceGenerators. Always run them 
+## Tooling
 
-&#x20; after generator changes and review the diff manually.
-
-
-
-\## Workflow
-
-\- After any generator change: run `dotnet test` for the 
-
-&#x20; Generator.Tests project and report results.
-
-\- After any code change touching the rewriter: also run the 
-
-&#x20; flavour integration tests.
-
-\- Commit at the end of each completed sub-task with a message 
-
-&#x20; referencing the phase and sub-task.
-
-
-
-\## What to flag, not silently do
-
-\- Translation table additions beyond what the plan specifies.
-
-\- Changes to public API shape (attribute parameters, namespace 
-
-&#x20; conventions).
-
-\- Any decision the plan calls out as "open" or "TBD".
-
-
-
+- The generator targets `netstandard2.0`. Every other project targets **`net10.0`**.
+- LF line endings throughout (`.gitattributes`).
+- CI runs `dotnet test -c Release` on every push to main and every PR.
+- Releases are tag-driven (`v*`) via `.github/workflows/release.yml`; this is a user-initiated step.
