@@ -1,0 +1,25 @@
+# Code ownership for EngineTask.
+# See https://docs.github.com/en/repositories/managing-your-repositories-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Branch protection on `main` requires Code Owner review for every PR.
+# This file is what makes that rule have teeth — without it, the
+# "require code owner reviews" setting is a silent no-op.
+
+# Default — the repo owner approves everything by default.
+*                                       @adds39939
+
+# Workflow + release config — extra-explicit. Anything that affects
+# how releases are cut, what gets pushed to nuget.org, or what runs
+# in CI must go through the same review path.
+/.github/workflows/                     @adds39939
+/.github/CODEOWNERS                     @adds39939
+
+# The generator's own packaging contract. Changes here ship a new
+# NuGet package shape on the next tagged release.
+/src/EngineTask.Generator/EngineTask.Generator.csproj    @adds39939
+/src/EngineTask.Generator/AnalyzerReleases.*.md          @adds39939
+
+# Agent / contributor guidance.
+/CLAUDE.md                              @adds39939
+/README.md                              @adds39939
+/LICENSE                                @adds39939
