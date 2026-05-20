@@ -84,6 +84,22 @@ public class UniTaskFlavourTests
             flavour: "UniTask");
 
     [Fact]
+    public Task IAsyncEnumerableParameter_IsMappedNotFlagged() =>
+        TestHelper.VerifyMirrorAsync("""
+            using System.Collections.Generic;
+            using System.Threading.Tasks;
+            using EngineTask;
+
+            namespace Sample;
+
+            [GenerateMirror(TaskFlavour.UniTask)]
+            public partial class C
+            {
+                public Task Consume(IAsyncEnumerable<int> source) => Task.CompletedTask;
+            }
+            """, flavourSuffix: "UniTask");
+
+    [Fact]
     public Task BothFlavoursOnOneClass_EmitsTwoMirrors() =>
         TestHelper.VerifyAllMirrorsAsync("""
             using System.Threading.Tasks;
