@@ -10,8 +10,8 @@ Early development. See [`EngineTask-Plan.md`](EngineTask-Plan.md) for the seven-
 
 - [x] **Phase 1** — Walking skeleton: attribute via internal-attribute pattern, GDTask signature swap.
 - [x] **Phase 2** — Body rewriting: `MirrorRewriter` translates `Task` / `Task<T>` / `ValueTask` / `ValueTask<T>` / `TaskCompletionSource<T>` and static-factory calls (`Task.Delay`, `Task.WhenAll`, `Task.WhenAny`, `Task.FromResult`, `Task.CompletedTask`, `Task.FromException`, `Task.FromCanceled`). One integration test proves the generated state machine uses `AsyncGDTaskMethodBuilder`.
-- [ ] **Phase 3** — Diagnostics, escape hatches, edge cases.
-- [ ] **Phase 4** — UniTask + flavour abstraction.
+- [x] **Phase 3** — Diagnostics (`ENGTASK001` unmapped API, `ENGTASK002` non-partial, `ENGTASK003` async void, `ENGTASK004` collision), `[MirrorIgnore]` enforcement, source-using preservation, edge cases (generics, constraints, multi-statement bodies, `CancellationToken`).
+- [x] **Phase 4** — UniTask flavour + flavour abstraction. `[GenerateMirror(TaskFlavour.UniTask)]` emits a `.UniTask` mirror; one class can carry both `[GenerateMirror(GDTask)]` and `[GenerateMirror(UniTask)]` and gets two mirrors. End-to-end integration test in `EngineTask.UniTask.Tests` runs against a minimal Cysharp.Threading.Tasks shim; a folder-layout Unity sample documents the manual smoke-test path.
 - [ ] **Phase 5** — Allocation verification via BenchmarkDotNet.
 - [ ] **Phase 6** — Configuration + niceties + first NuGet release.
 - [ ] **Phase 7** — User-defined flavours.
@@ -48,11 +48,14 @@ Same source, two state machines, two allocation profiles.
 ```
 src/
   EngineTask.Generator/            IIncrementalGenerator (netstandard2.0)
+    Flavours/                      per-flavour translation tables
 samples/
-  EngineTask.Sample.Core/          library using [GenerateMirror]
+  EngineTask.Sample.Core/          library using [GenerateMirror(GDTask)]
+  EngineTask.Sample.Unity/         Unity manual-smoke-test sample (UniTask)
 tests/
   EngineTask.Generator.Tests/      Verify.SourceGenerators snapshot tests
-  EngineTask.GDTask.Tests/         runtime integration tests
+  EngineTask.GDTask.Tests/         runtime integration tests (real GDTask)
+  EngineTask.UniTask.Tests/        runtime integration tests (UniTask shim)
 EngineTask-Plan.md                  full project plan
 CLAUDE.md                           agent guidelines
 ```
