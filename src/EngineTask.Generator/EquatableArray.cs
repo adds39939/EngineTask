@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace EngineTask.Generator;
 
-internal readonly struct EquatableArray<T> : IEquatable<EquatableArray<T>>, IEnumerable<T>
+public readonly struct EquatableArray<T> : IEquatable<EquatableArray<T>>, IEnumerable<T>
     where T : IEquatable<T>
 {
     private readonly T[]? _items;
