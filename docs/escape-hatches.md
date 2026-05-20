@@ -63,7 +63,7 @@ This is identical in behaviour to `[MirrorIgnore]` except that the source-side m
 
 ## Why this replaced `#if ENGINETASK_*` sections
 
-The early plan called for `#if ENGINETASK_GDTASK` / `#if ENGINETASK_UNITASK` / `#if ENGINETASK_SOURCE` conditional blocks. Phase 6's `Namespace`/`ClassSuffix` overrides plus the `[MirrorIgnore]` + manual-partial pattern documented above cover every use case that conditional sections were designed for, without the substantial Roslyn complexity (re-parsing the source with different preprocessor symbols, or running the rewriter over inactive trivia).
+One natural-sounding alternative is per-flavour `#if ENGINETASK_GDTASK` / `#if ENGINETASK_UNITASK` / `#if ENGINETASK_SOURCE` blocks inside the source method. EngineTask deliberately doesn't implement that, because the `Namespace`/`ClassSuffix` attribute overrides plus the `[MirrorIgnore]` + manual-partial pattern documented above cover every use case conditional sections were designed for, without the substantial Roslyn complexity (re-parsing the source with different preprocessor symbols, or running the rewriter over inactive trivia).
 
 If you need genuinely per-flavour code, write it as separate partial files in the mirror namespace — they're explicit, IDE-navigable, and run through the normal compile path.
 
@@ -86,7 +86,7 @@ In the mirror, `input`'s type becomes `GDTask<int>` (or `UniTask<int>`), and the
 |---|---|
 | `task.ConfigureAwait(bool)` | GDTask and UniTask both expose `.ConfigureAwait(bool)`. |
 | `tcs.SetResult(value)` | `TaskCompletionSource<T>` is mapped at the *type* level to `GDTaskCompletionSource<T>` / `UniTaskCompletionSource<T>`; both expose `.SetResult(T)`. |
-| `tcs.Task` | Both flavour-specific completion sources have a `.Task` property returning their own task-like type. The Phase 3 rewriter explicitly does NOT flag instance accesses for ENGTASK001 (only statics). |
+| `tcs.Task` | Both flavour-specific completion sources have a `.Task` property returning their own task-like type. The rewriter explicitly does NOT flag instance accesses for ENGTASK001 (only statics). |
 | `task.GetAwaiter()` | Standard awaitable shape. |
 
 ### What doesn't work — and the workaround

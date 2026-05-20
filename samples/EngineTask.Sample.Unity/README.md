@@ -16,7 +16,7 @@ Packages/manifest.json UniTask installed via Cysharp's UPM git URL
 
 1. Create a new Unity 2022.3 LTS (or newer) project, .NET Standard 2.1.
 2. Replace `Packages/manifest.json` with the one in this folder (or merge dependencies). Unity pulls UniTask from Cysharp's git URL on first open.
-3. Build the EngineTask generator into a NuGet package (Phase 6 work) or, while still pre-release, drop a copy of `EngineTask.Generator.dll` (the `netstandard2.0` build output) into `Assets/Plugins/` with `.asmdef` set to `noEngineReferences = true` and label it a `RoslynAnalyzer` in the inspector.
+3. Drop a copy of `EngineTask.Generator.dll` (the `netstandard2.0` build output, or the analyzer DLL out of the `EngineTask` NuGet package's `analyzers/dotnet/cs/` folder) into `Assets/Plugins/` with `.asmdef` set to `noEngineReferences = true` and label it a `RoslynAnalyzer` in the inspector.
 4. Drop `Assets/Scripts/` from this folder into the Unity project.
 5. Open any scene, add an empty GameObject, attach `WorkBehaviour`. Press Play. The console should print `compute => 5` and `sum => 10`.
 

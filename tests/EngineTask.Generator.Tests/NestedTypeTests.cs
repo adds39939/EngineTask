@@ -44,9 +44,9 @@ public class NestedTypeTests
             }
             """);
 
-    // Two distinct nested classes with the same inner name — pre-Phase-7.4
-    // both mirrored to `Sample.GDTask.Inner` and collided on file name.
-    // With the type path in the hint name, they get distinct generated files.
+    // Two distinct nested classes with the same inner name. The hint
+    // name includes the type path (Sample.Alpha.Inner.GDTask.g.cs vs
+    // Sample.Beta.Inner.GDTask.g.cs) so they don't collide on disk.
     [Fact]
     public Task TwoDifferentOuterParents_SameInnerName_BothMirror() =>
         TestHelper.VerifyAllMirrorsAsync("""

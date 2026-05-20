@@ -8,12 +8,7 @@ namespace EngineTask.Benchmarks;
 // state-machine path: the C# compiler picks the AsyncMethodBuilder
 // for each return type, builds a struct state machine in Release, and
 // (for synchronously-completing awaits) keeps the whole chain on the
-// stack.
-//
-// Carry-over from Phase 5: the UniTask side requires a meaningfully-
-// accurate AsyncUniTaskMethodBuilder, which the Phase 7.4 shim now
-// supplies. The benchmark proves the resulting state machine doesn't
-// allocate on the synchronous path.
+// stack — proving the mirrored async path doesn't allocate.
 [MemoryDiagnoser]
 public class AsyncBenchmarks
 {

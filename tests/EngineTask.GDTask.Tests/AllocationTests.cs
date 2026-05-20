@@ -4,11 +4,11 @@ using Xunit;
 
 namespace EngineTask.IntegrationTests.GDTask;
 
-// Phase 5 — these tests are the regression boundary for the project's
-// central claim: a consumer calling the engine-task mirror does not
-// allocate a Task. They use GC.GetAllocatedBytesForCurrentThread() to
-// measure heap allocation on the current thread across a warmed-up
-// loop, and assert the mirror's per-call cost stays at zero.
+// These tests are the regression boundary for the project's central
+// claim: a consumer calling the engine-task mirror does not allocate
+// a Task. They use GC.GetAllocatedBytesForCurrentThread() to measure
+// heap allocation on the current thread across a warmed-up loop, and
+// assert the mirror's per-call cost stays at zero.
 //
 // The second test exercises the *source* Task path on the same input
 // to validate the measurement itself — if Task.FromResult ever stopped

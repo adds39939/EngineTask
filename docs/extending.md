@@ -103,7 +103,7 @@ The mirror lives next to the source library and can be referenced directly from 
 
 ## Multiple flavours, one class
 
-The same `[GenerateMirror]` rules from Phase 4 apply to custom flavours — a class can carry any mix of built-in and custom flavour attributes:
+The same `[GenerateMirror]` rules apply to custom flavours — a class can carry any mix of built-in and custom flavour attributes:
 
 ```csharp
 [GenerateMirror(TaskFlavour.GDTask)]

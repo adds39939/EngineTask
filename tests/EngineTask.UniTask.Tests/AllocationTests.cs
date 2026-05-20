@@ -4,16 +4,14 @@ using Xunit;
 
 namespace EngineTask.IntegrationTests.UniTaskFlavour;
 
-// Phase 5 — regression boundary for the UniTask flavour. Same shape as
+// Regression boundary for the UniTask flavour. Same shape as
 // AllocationTests.cs in EngineTask.GDTask.Tests: warm up, force GC,
 // measure per-thread allocated bytes across a loop, assert zero.
 //
-// This runs against the Cysharp.Threading.Tasks shim
-// (EngineTask.UniTask.Shim project). UniTask<T> in the shim is a
-// readonly struct holding T inline — exactly the shape of the real
-// package on the synchronously-completed FromResult path. If a
-// regression replaced FromResult with anything that allocates, this
-// test will surface it.
+// This runs against the real Cysharp UniTask NuGet package.
+// UniTask<T> is a readonly struct holding T inline on the
+// synchronously-completed FromResult path. If a regression replaced
+// FromResult with anything that allocates, this test will surface it.
 public class AllocationTests
 {
     private const int WarmupIterations = 5_000;
@@ -40,15 +38,11 @@ public class AllocationTests
             "UniTask<int> is a readonly struct, so the call site should be stack-only.");
     }
 
-    // Regression boundary for the `async UniTask<int>` path. The
-    // C# compiler builds the state machine with the shim's
+    // Regression boundary for the `async UniTask<int>` path. The C#
+    // compiler builds the state machine with UniTask's
     // AsyncUniTaskMethodBuilder<int>; for synchronously-completing
     // awaits (UniTask.CompletedTask is sync), the state machine
     // stays on the stack and no heap byte is allocated.
-    //
-    // This is the assertion the Phase 5 carry-over called out:
-    // "async UniTask benchmark path requires a meaningfully-accurate
-    // AsyncUniTaskMethodBuilder shim". Phase 7.4 supplies it.
     //
     // The assertion is only valid in Release. The C# compiler emits
     // async state machines as *classes* in Debug builds (for
