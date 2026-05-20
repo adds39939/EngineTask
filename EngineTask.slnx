@@ -7,6 +7,7 @@
     <Project Path="tests/EngineTask.GDTask.Tests/EngineTask.GDTask.Tests.csproj" />
     <Project Path="tests/EngineTask.UniTask.Shim/EngineTask.UniTask.Shim.csproj" />
     <Project Path="tests/EngineTask.UniTask.Tests/EngineTask.UniTask.Tests.csproj" />
+    <Project Path="tests/EngineTask.Benchmarks/EngineTask.Benchmarks.csproj" />
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/EngineTask.Sample.Core/EngineTask.Sample.Core.csproj" />
