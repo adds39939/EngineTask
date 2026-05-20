@@ -20,6 +20,8 @@
     <IsPackable>true</IsPackable>
     <PackageId>EngineTask</PackageId>
     <Version>0.1.0-alpha</Version>
+    <Authors>EngineTask contributors</Authors>
+    <Copyright>Copyright (c) 2026 EngineTask contributors</Copyright>
     <Description>A C# source generator that emits parallel, allocation-free mirrors of Task-based async code targeting engine-specific task-likes — GDTask for Godot, UniTask for Unity.</Description>
     <PackageTags>source-generator;analyzer;roslyn;async;task;godot;unity;gdtask;unitask</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
